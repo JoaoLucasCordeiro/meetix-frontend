@@ -1,13 +1,12 @@
+import { Routes, Route } from "react-router-dom";
+import LandingPage from "./pages/LandingPage";
 
 function App() {
-
   return (
-    <main>
-      <div>
-        <h1 className="text-red-500">Projeto Meetix</h1>
-      </div>
-    </main>
-  )
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+    </Routes>
+  );
 }
 
-export default App
+export default App;
