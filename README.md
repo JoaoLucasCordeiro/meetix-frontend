@@ -1,69 +1,32 @@
-# React + TypeScript + Vite
+# Meetix
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+<img width="1584" height="396" alt="Image" src="https://github.com/user-attachments/assets/1eae2fd1-7b60-4545-98eb-37166d977baf" />
 
-Currently, two official plugins are available:
+**Meetix** é uma plataforma web que tem o objetivo de auxiliar a organização de eventos do meio acadêmico, desde palestras, oficinas, workshops, calouradas, festas, etc. Nesse aspecto o Meetix surge como uma ferramenta para organizadores e potenciais participantes desses eventos, oferecendo features que ajudem na organização e execução do seu evento, e ajudando o participante dos mesmos eventos a se manterem atualizados e a parte de tudo o que está acontecendo.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🎯 Objetivo
 
-## Expanding the ESLint configuration
+Oferecer um ambiente digital onde membros da comunidade acadêmica possam:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- Cadastrar eventos.
+- Gerir seus eventos.
+- Gerar certificados e ingressos para eventos (que sejam pagos).
+- Interações sociais.
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🧱 Tecnologias
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+### Front-end
+- React.js com TypeScript
+- Tailwind CSS
+- Shadcn UI
+- Vite
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 📄 Licença
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Este projeto está sob a licença MIT. Veja mais em [LICENSE](./LICENSE).
+
+---
+
+Feito com 💡 por João Lucas Cordeiro, João Gabriel e Ocimar Schroeder, estudantes da Universidade de Pernambuco (UPE).
