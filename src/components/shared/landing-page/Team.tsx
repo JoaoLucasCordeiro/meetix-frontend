@@ -19,7 +19,7 @@ export default function Team() {
         {
             name: "João Gabriel",
             role: "Dev Back-End",
-            image: "/team/joao-gabriel.jpg",
+            image: "/joaogabriel.jpeg",
             bio: "Desenvolvedor back-end Spring Boot",
             social: {
                 github: "#",
