@@ -1,9 +1,12 @@
+import About from "@/components/shared/landing-page/About"
+import Hero from "@/components/shared/landing-page/Hero"
 
 const LandingPage = () => {
   return (
-    <div>
-        <h1 className="text-2xl text-blue-500">Meetix</h1>
-    </div>
+    <main className="min-h-screen flex flex-col">
+      <Hero />
+      <About/>
+    </main>
   )
 }
 
