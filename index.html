@@ -1,14 +1,63 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/meetix-apple-icon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ff914d">
+    
+    <!-- Meta Tags para SEO -->
+    <title>Meetix - Plataforma de Eventos Acadêmicos</title>
+    <meta name="description" content="Organize e participe de eventos acadêmicos com facilidade. Conecte organizadores e participantes em uma única plataforma.">
+    <meta name="keywords" content="eventos acadêmicos, palestras, workshops, universidade, meetix, eventos universitários">
+    <meta name="author" content="Meetix">
+    
+    <!--  Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://meetix.com/">
+    <meta property="og:title" content="Meetix - Plataforma de Eventos Acadêmicos">
+    <meta property="og:description" content="Organize e participe de eventos acadêmicos com facilidade. Conecte organizadores e participantes em uma única plataforma.">
+    <meta property="og:image" content="https://meetix.com/og-image.jpg">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://meetix.com/">
+    <meta property="twitter:title" content="Meetix - Plataforma de Eventos Acadêmicos">
+    <meta property="twitter:description" content="Organize e participe de eventos acadêmicos com facilidade. Conecte organizadores e participantes em uma única plataforma.">
+    <meta property="twitter:image" content="https://meetix.com/twitter-image.jpg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="/src/index.css">
     <link rel="stylesheet" href="/src/index.css">
-    <title>Vite + React + TS</title>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Meetix",
+      "url": "https://meetix.com",
+      "logo": "https://meetix.com/logo.png",
+      "description": "Plataforma de eventos acadêmicos",
+      "sameAs": [
+        "https://instagram.com/meetix",
+        "https://linkedin.com/company/meetix",
+        "https://twitter.com/meetix"
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    
+    <noscript>
+      <div style="text-align: center; padding: 2rem; font-family: Arial, sans-serif;">
+        <h1>Meetix - Plataforma de Eventos Acadêmicos</h1>
+        <p>Para utilizar nossa plataforma, é necessário habilitar o JavaScript em seu navegador.</p>
+        <p>Visite nossa <a href="/sobre">página sobre</a> para mais informações.</p>
+      </div>
+    </noscript>
+    
     <script type="module" src="/src/main.tsx"></script>
+    
   </body>
 </html>
