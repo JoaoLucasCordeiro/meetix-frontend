@@ -66,20 +66,25 @@ export default function About() {
                         </p>
 
                         <div className="pt-4 flex flex-col sm:flex-row gap-4">
-                            <Link to="/sobre">
-                                <Button variant="outline" className="border-[#ff914d] text-[#ff914d] hover:bg-[#ff914d]/10">
+                            <Link to="/sobre" className="w-full sm:w-auto">
+                                <Button 
+                                    variant="outline" 
+                                    className="w-full sm:w-auto border-[#ff914d] text-[#ff914d] hover:bg-[#ff914d]/10"
+                                >
                                     Saiba mais
                                 </Button>
                             </Link>
-                            <Link to="/contato">
-                                <Button className="bg-[#ff914d] hover:bg-[#ff7b33]">
+                            <Link to="/contato" className="w-full sm:w-auto">
+                                <Button 
+                                    className="w-full sm:w-auto bg-[#ff914d] hover:bg-[#ff7b33]"
+                                >
                                     Entre em contato
                                 </Button>
                             </Link>
                         </div>
                     </motion.div>
 
-                    {/* Estatísticas e destaques (provalmente vamos tirar)*/}
+                    {/* Estatísticas e destaques */}
                     <motion.div
                         initial={{ opacity: 0, x: 30 }}
                         whileInView={{ opacity: 1, x: 0 }}
