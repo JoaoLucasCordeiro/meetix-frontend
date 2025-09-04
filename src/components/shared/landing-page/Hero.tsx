@@ -61,27 +61,6 @@ export default function Hero() {
                 Conecte organizadores e participantes em uma única plataforma.
               </motion.p>
 
-              {/* Estatísticas */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.25 }}
-                className="flex flex-wrap justify-center lg:justify-start gap-6 sm:gap-8 mb-8 sm:mb-12"
-              >
-                <div className="flex flex-col items-center lg:items-start">
-                  <span className="text-2xl sm:text-3xl font-bold text-[#ff914d]">500+</span>
-                  <span className="text-sm text-[#191919]/70">Eventos realizados</span>
-                </div>
-                <div className="flex flex-col items-center lg:items-start">
-                  <span className="text-2xl sm:text-3xl font-bold text-[#ff914d]">20K+</span>
-                  <span className="text-sm text-[#191919]/70">Participantes</span>
-                </div>
-                <div className="flex flex-col items-center lg:items-start">
-                  <span className="text-2xl sm:text-3xl font-bold text-[#ff914d]">50+</span>
-                  <span className="text-sm text-[#191919]/70">Instituições</span>
-                </div>
-              </motion.div>
-
               {/* Botões - REFATORADO */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
