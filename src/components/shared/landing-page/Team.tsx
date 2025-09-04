@@ -8,7 +8,7 @@ export default function Team() {
         {
             name: "João Lucas",
             role: "Dev Full-Stack e Gerente de Projeto",
-            image: "/joaolucas.jpeg", // Substitua pelas imagens reais
+            image: "/joaolucas.jpeg", 
             bio: "Lidera o desenvolvimento front-end e back-end, garantindo a qualidade e entrega do projeto.",
             social: {
                 github: "#",
