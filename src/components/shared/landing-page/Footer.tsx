@@ -119,7 +119,7 @@ export default function Footer() {
                             </div>
                             <div className="flex items-center gap-3">
                                 <MapPin className="h-4 w-4 text-[#ff914d]" />
-                                <span className="text-gray-400 text-sm">Florianópolis, SC</span>
+                                <span className="text-gray-400 text-sm">Garanhuns, PE</span>
                             </div>
                         </div>
                     </div>
