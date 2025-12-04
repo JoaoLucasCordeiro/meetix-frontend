@@ -1,20 +1,81 @@
 import { Eye, EyeOff, LogIn, BookOpen } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { toast } from 'react-toastify';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/contexts/AuthContext";
+import type { ApiError } from "@/types/auth";
 
 export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [formData, setFormData] = useState({
+        email: "",
+        password: "",
+    });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const { login } = useAuth();
+    const navigate = useNavigate();
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setTimeout(() => setIsLoading(false), 1500);
+
+        // Validação de campos vazios
+        if (!formData.email.trim()) {
+            toast.error('Por favor, insira seu e-mail');
+            setIsLoading(false);
+            return;
+        }
+
+        if (!formData.password.trim()) {
+            toast.error('Por favor, insira sua senha');
+            setIsLoading(false);
+            return;
+        }
+
+        // Validação de formato de e-mail
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            toast.error('Por favor, insira um e-mail válido');
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            await login(formData.email, formData.password);
+            toast.success('Login realizado com sucesso! Bem-vindo(a) ao Zuê! 🎉');
+            // Redirect to events page after successful login
+            setTimeout(() => navigate("/eventos"), 1000);
+        } catch (err) {
+            const apiError = err as ApiError;
+            
+            // Tratamento específico de erros
+            if (apiError.status === 401) {
+                toast.error('E-mail ou senha incorretos. Verifique suas credenciais.');
+            } else if (apiError.status === 404) {
+                toast.error('Usuário não encontrado. Verifique seu e-mail.');
+            } else if (apiError.status === 0) {
+                toast.error('Erro de conexão. Verifique sua internet e tente novamente.');
+            } else if (apiError.status && apiError.status >= 500) {
+                toast.error('Erro no servidor. Tente novamente mais tarde.');
+            } else {
+                toast.error(apiError.message || 'Erro ao fazer login. Tente novamente.');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({
+            ...formData,
+            [e.target.id]: e.target.value,
+        });
     };
 
     return (
@@ -45,7 +106,7 @@ export default function Login() {
                             >
                                 <img
                                     src="/logo.png"
-                                    alt="Meetix Logo"
+                                    alt="Zuê Logo"
                                     className="
                     h-24 w-auto
                     md:h-32
@@ -70,7 +131,7 @@ export default function Login() {
                                 transition={{ delay: 0.4 }}
                                 className="text-[#191919]/70"
                             >
-                                Entre no Meetix e descubra eventos acadêmicos incríveis
+                                Entre no Zuê e descubra eventos acadêmicos incríveis
                             </motion.p>
                         </div>
 
@@ -85,7 +146,7 @@ export default function Login() {
                             <div className="space-y-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="email" className="text-[#191919]">
-                                        E-mail acadêmico
+                                        E-mail
                                     </Label>
                                     <div className="relative">
                                         <Input
@@ -94,6 +155,8 @@ export default function Login() {
                                             placeholder="seu.email@universidade.edu.br"
                                             className="bg-white/70 border-gray-300 text-[#191919] pl-10 h-12 rounded-xl focus:ring-2 focus:ring-[#ff914d] focus:border-transparent"
                                             required
+                                            value={formData.email}
+                                            onChange={handleInputChange}
                                         />
                                         <BookOpen className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                                     </div>
@@ -110,6 +173,8 @@ export default function Login() {
                                             placeholder="Sua senha"
                                             className="bg-white/70 border-gray-300 text-[#191919] pl-10 pr-10 h-12 rounded-xl focus:ring-2 focus:ring-[#ff914d] focus:border-transparent"
                                             required
+                                            value={formData.password}
+                                            onChange={handleInputChange}
                                         />
                                         <LogIn className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                                         <button

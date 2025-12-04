@@ -1,24 +1,132 @@
-import { Eye, EyeOff, User, Mail, Lock, Book, Instagram, Phone, LogIn } from "lucide-react";
+import { Eye, EyeOff, User, Mail, Lock, Book, Instagram, GraduationCap, LogIn } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { toast } from 'react-toastify';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
+import type { ApiError } from "@/types/auth";
 
 export default function Register() {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [curso, setCurso] = useState("");
     const [acceptedTerms, setAcceptedTerms] = useState(false);
+    const [formData, setFormData] = useState({
+        firstName: "",
+        lastName: "",
+        email: "",
+        password: "",
+        instagram: "",
+        university: "",
+        course: "",
+    });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const { register } = useAuth();
+    const navigate = useNavigate();
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        // Simulação de processo de cadastro
-        setTimeout(() => setIsLoading(false), 1500);
+
+        // Validação de campos obrigatórios
+        if (!formData.firstName.trim()) {
+            toast.error('Por favor, insira seu primeiro nome');
+            setIsLoading(false);
+            return;
+        }
+
+        if (!formData.lastName.trim()) {
+            toast.error('Por favor, insira seu sobrenome');
+            setIsLoading(false);
+            return;
+        }
+
+        if (!formData.email.trim()) {
+            toast.error('Por favor, insira seu e-mail');
+            setIsLoading(false);
+            return;
+        }
+
+        // Validação de formato de e-mail
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            toast.error('Por favor, insira um e-mail válido');
+            setIsLoading(false);
+            return;
+        }
+
+        if (!formData.password.trim()) {
+            toast.error('Por favor, insira uma senha');
+            setIsLoading(false);
+            return;
+        }
+
+        // Validação de senha forte
+        if (formData.password.length < 6) {
+            toast.error('A senha deve ter no mínimo 6 caracteres');
+            setIsLoading(false);
+            return;
+        }
+
+        if (!formData.university.trim()) {
+            toast.error('Por favor, insira sua universidade');
+            setIsLoading(false);
+            return;
+        }
+
+        if (!formData.course.trim()) {
+            toast.error('Por favor, insira seu curso');
+            setIsLoading(false);
+            return;
+        }
+
+        if (!acceptedTerms) {
+            toast.error('Você precisa aceitar os Termos de Serviço para continuar');
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            await register({
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                email: formData.email,
+                password: formData.password,
+                instagram: formData.instagram || undefined,
+                university: formData.university,
+                course: formData.course,
+            });
+            toast.success('Conta criada com sucesso! Bem-vindo(a) ao Zuê! 🎉');
+            // Redirect to events page after successful registration
+            setTimeout(() => navigate("/eventos"), 1000);
+        } catch (err) {
+            const apiError = err as ApiError;
+            
+            // Tratamento específico de erros
+            if (apiError.status === 409) {
+                toast.error('Este e-mail já está cadastrado. Tente fazer login.');
+            } else if (apiError.status === 400) {
+                toast.error('Dados inválidos. Verifique os campos e tente novamente.');
+            } else if (apiError.status === 0) {
+                toast.error('Erro de conexão. Verifique sua internet e tente novamente.');
+            } else if (apiError.status && apiError.status >= 500) {
+                toast.error('Erro no servidor. Tente novamente mais tarde.');
+            } else {
+                toast.error(apiError.message || 'Erro ao criar conta. Tente novamente.');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({
+            ...formData,
+            [e.target.id]: e.target.value,
+        });
     };
 
     return (
@@ -49,7 +157,7 @@ export default function Register() {
                             >
                                 <img
                                     src="/logo.png"
-                                    alt="Meetix Logo"
+                                    alt="Zuê Logo"
                                     className="
                     h-24 w-auto
                     md:h-32
@@ -74,7 +182,7 @@ export default function Register() {
                                 transition={{ delay: 0.4 }}
                                 className="text-[#191919]/70"
                             >
-                                Junte-se à comunidade acadêmica do Meetix
+                                Junte-se à comunidade acadêmica do Zuê
                             </motion.p>
                         </div>
 
@@ -87,18 +195,39 @@ export default function Register() {
                             className="space-y-6"
                         >
                             <div className="space-y-4">
-                                {/* Nome Completo */}
+                                {/* Primeiro Nome */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="name" className="text-[#191919]">
-                                        Nome Completo
+                                    <Label htmlFor="firstName" className="text-[#191919]">
+                                        Primeiro Nome
                                     </Label>
                                     <div className="relative">
                                         <Input
-                                            id="name"
+                                            id="firstName"
                                             type="text"
-                                            placeholder="Seu nome completo"
+                                            placeholder="Seu primeiro nome"
                                             className="bg-white/70 border-gray-300 text-[#191919] pl-10 h-12 rounded-xl focus:ring-2 focus:ring-[#ff914d] focus:border-transparent"
                                             required
+                                            value={formData.firstName}
+                                            onChange={handleInputChange}
+                                        />
+                                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                                    </div>
+                                </div>
+
+                                {/* Sobrenome */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="lastName" className="text-[#191919]">
+                                        Sobrenome
+                                    </Label>
+                                    <div className="relative">
+                                        <Input
+                                            id="lastName"
+                                            type="text"
+                                            placeholder="Seu sobrenome"
+                                            className="bg-white/70 border-gray-300 text-[#191919] pl-10 h-12 rounded-xl focus:ring-2 focus:ring-[#ff914d] focus:border-transparent"
+                                            required
+                                            value={formData.lastName}
+                                            onChange={handleInputChange}
                                         />
                                         <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                                     </div>
@@ -107,7 +236,7 @@ export default function Register() {
                                 {/* Email Acadêmico */}
                                 <div className="space-y-2">
                                     <Label htmlFor="email" className="text-[#191919]">
-                                        E-mail acadêmico
+                                        E-mail
                                     </Label>
                                     <div className="relative">
                                         <Input
@@ -116,6 +245,8 @@ export default function Register() {
                                             placeholder="seu.email@universidade.edu.br"
                                             className="bg-white/70 border-gray-300 text-[#191919] pl-10 h-12 rounded-xl focus:ring-2 focus:ring-[#ff914d] focus:border-transparent"
                                             required
+                                            value={formData.email}
+                                            onChange={handleInputChange}
                                         />
                                         <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                                     </div>
@@ -133,6 +264,8 @@ export default function Register() {
                                             placeholder="Crie uma senha segura"
                                             className="bg-white/70 border-gray-300 text-[#191919] pl-10 pr-10 h-12 rounded-xl focus:ring-2 focus:ring-[#ff914d] focus:border-transparent"
                                             required
+                                            value={formData.password}
+                                            onChange={handleInputChange}
                                         />
                                         <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                                         <button
@@ -149,31 +282,41 @@ export default function Register() {
                                     </div>
                                 </div>
 
-                                {/* Curso de Origem - CORRIGIDO */}
+                                {/* Universidade */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="course" className="text-[#191919]">
-                                        Curso de Origem
+                                    <Label htmlFor="university" className="text-[#191919]">
+                                        Universidade
                                     </Label>
                                     <div className="relative">
-                                        <Select value={curso} onValueChange={setCurso}>
-                                            <SelectTrigger className="w-full bg-white/70 border-gray-300 text-[#191919] pl-10 h-12 rounded-xl focus:ring-2 focus:ring-[#ff914d] focus:border-transparent">
-                                                <Book className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                                                <SelectValue placeholder="Selecione seu curso" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="engenharia de software">Engenharia De Software</SelectItem>
-                                                <SelectItem value="medicina">Medicina</SelectItem>
-                                                <SelectItem value="biologia">Biologia</SelectItem>
-                                                <SelectItem value="letras">Letras</SelectItem>
-                                                <SelectItem value="computacao">Computação</SelectItem>
-                                                <SelectItem value="psicologia">Psicologia</SelectItem>
-                                                <SelectItem value="Pedagogia">Pedagogia</SelectItem>
-                                                <SelectItem value="historia">História</SelectItem>
-                                                <SelectItem value="geografia">Geografia</SelectItem>
-                                                <SelectItem value="matematica">Matemática</SelectItem>
+                                        <Input
+                                            id="university"
+                                            type="text"
+                                            placeholder="Ex: UFPE, USP, UNICAMP"
+                                            className="bg-white/70 border-gray-300 text-[#191919] pl-10 h-12 rounded-xl focus:ring-2 focus:ring-[#ff914d] focus:border-transparent"
+                                            required
+                                            value={formData.university}
+                                            onChange={handleInputChange}
+                                        />
+                                        <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                                    </div>
+                                </div>
 
-                                            </SelectContent>
-                                        </Select>
+                                {/* Curso */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="course" className="text-[#191919]">
+                                        Curso
+                                    </Label>
+                                    <div className="relative">
+                                        <Input
+                                            id="course"
+                                            type="text"
+                                            placeholder="Ex: Ciência da Computação"
+                                            className="bg-white/70 border-gray-300 text-[#191919] pl-10 h-12 rounded-xl focus:ring-2 focus:ring-[#ff914d] focus:border-transparent"
+                                            required
+                                            value={formData.course}
+                                            onChange={handleInputChange}
+                                        />
+                                        <Book className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                                     </div>
                                 </div>
 
@@ -188,25 +331,10 @@ export default function Register() {
                                             type="text"
                                             placeholder="@seuusuario"
                                             className="bg-white/70 border-gray-300 text-[#191919] pl-10 h-12 rounded-xl focus:ring-2 focus:ring-[#ff914d] focus:border-transparent"
+                                            value={formData.instagram}
+                                            onChange={handleInputChange}
                                         />
                                         <Instagram className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                                    </div>
-                                </div>
-
-                                {/* Número de Telefone */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="phone" className="text-[#191919]">
-                                        Número de Telefone
-                                    </Label>
-                                    <div className="relative">
-                                        <Input
-                                            id="phone"
-                                            type="tel"
-                                            placeholder="(11) 99999-9999"
-                                            className="bg-white/70 border-gray-300 text-[#191919] pl-10 h-12 rounded-xl focus:ring-2 focus:ring-[#ff914d] focus:border-transparent"
-                                            required
-                                        />
-                                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                                     </div>
                                 </div>
 
