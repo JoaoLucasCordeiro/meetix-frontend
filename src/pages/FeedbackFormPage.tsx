@@ -59,13 +59,28 @@ export default function FeedbackFormPage() {
 
     const checkExistingFeedback = async () => {
         try {
+            console.log('📝 Verificando se usuário já enviou feedback para evento:', eventId);
             const result = await feedbackAPI.hasUserFeedback(eventId!);
+            console.log('📝 Resultado da verificação:', result);
+            
             if (result.hasFeedback) {
                 setHasAlreadyFeedback(true);
                 toast.info('Você já enviou feedback para este evento');
             }
         } catch (error) {
-            console.error('Erro ao verificar feedback:', error);
+            console.error('❌ Erro ao verificar feedback:', error);
+            const apiError = error as ApiError;
+            
+            // Log detalhado do erro
+            console.error('❌ Detalhes do erro:', {
+                status: apiError.status,
+                message: apiError.message,
+                eventId,
+                timestamp: new Date().toISOString()
+            });
+            
+            // Não bloqueia o usuário se houver erro na verificação
+            // Apenas loga para debug
         }
     };
 
