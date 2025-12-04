@@ -1,5 +1,6 @@
-import { Ticket, Download, CheckCircle, XCircle, Ban, Calendar, User, Loader2 } from "lucide-react";
+import { Ticket, Download, CheckCircle, XCircle, Ban, Calendar, User, Loader2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "react-toastify";
 import type { EventTicket, TicketStatus } from "@/types/ticket";
 
 interface TicketCardProps {
@@ -40,6 +41,15 @@ export default function TicketCard({ ticket, onDownload, isDownloading }: Ticket
             ? ticket.qrCodeData
             : `data:image/png;base64,${ticket.qrCodeData}`)
         : undefined;
+
+    const handleCopyCode = async () => {
+        try {
+            await navigator.clipboard.writeText(ticket.validationCode);
+            toast.success('Código copiado! Envie ao organizador para validação manual.');
+        } catch (error) {
+            toast.error('Erro ao copiar código');
+        }
+    };
 
     // Função para formatar data de forma segura
     const formatDate = (dateString: string | undefined) => {
@@ -137,11 +147,25 @@ export default function TicketCard({ ticket, onDownload, isDownloading }: Ticket
                 )}
 
                 <div className="pt-3 border-t border-gray-200">
-                    <p className="text-xs text-[#191919]/50 mb-2 text-center">
-                        Código de validação
-                    </p>
-                    <p className="font-mono text-sm text-center bg-gray-100 rounded px-3 py-2 text-[#191919]">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-[#191919]/50">
+                            Código de validação
+                        </p>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleCopyCode}
+                            className="h-7 px-2 text-xs hover:bg-[#ff914d]/10 hover:text-[#ff914d]"
+                        >
+                            <Copy className="h-3 w-3 mr-1" />
+                            Copiar
+                        </Button>
+                    </div>
+                    <p className="font-mono text-sm text-center bg-gray-100 rounded px-3 py-2 text-[#191919] break-all">
                         {ticket.validationCode}
+                    </p>
+                    <p className="text-xs text-center text-[#191919]/50 mt-2">
+                        💡 Copie este código para validação manual
                     </p>
                 </div>
             </div>
