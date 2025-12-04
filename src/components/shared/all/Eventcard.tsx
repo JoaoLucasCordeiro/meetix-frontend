@@ -51,10 +51,14 @@ export default function EventCard({
             className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-[#ff914d]/30"
         >
             {/* Image */}
-            <div className="relative h-48 overflow-hidden">
+            <div className="relative h-48 overflow-hidden bg-gray-100">
                 <img
                     src={image}
                     alt={title}
+                    onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/logo.png';
+                    }}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
                 {/* Category Badge */}
