@@ -1,8 +1,8 @@
-# Meetix
+# Zuê
 
 <img width="1584" height="396" alt="Image" src="https://github.com/user-attachments/assets/1eae2fd1-7b60-4545-98eb-37166d977baf" />
 
-**Meetix** é uma plataforma web que tem o objetivo de auxiliar a organização de eventos do meio acadêmico, desde palestras, oficinas, workshops, calouradas, festas, etc. Nesse aspecto o Meetix surge como uma ferramenta para organizadores e potenciais participantes desses eventos, oferecendo features que ajudem na organização e execução do seu evento, e ajudando o participante dos mesmos eventos a se manterem atualizados e a parte de tudo o que está acontecendo.
+**Zuê** é uma plataforma web que tem o objetivo de auxiliar a organização de eventos do meio acadêmico, desde palestras, oficinas, workshops, calouradas, festas, etc. Nesse aspecto o Zuê surge como uma ferramenta para organizadores e potenciais participantes desses eventos, oferecendo features que ajudem na organização e execução do seu evento, e ajudando o participante dos mesmos eventos a se manterem atualizados e a parte de tudo o que está acontecendo.
 
 ## 🎯 Objetivo
 
