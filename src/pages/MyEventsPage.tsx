@@ -1,96 +1,119 @@
 import { motion } from "framer-motion";
-import { Calendar, Plus, Ticket, Trophy } from "lucide-react";
+import { Calendar, Plus, Ticket, Trophy, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 import EventCard from "@/components/shared/all/Eventcard";
 import EventsLayout from "@/components/layouts/EventsLayouts";
+import { useAuth } from "@/contexts/AuthContext";
+import { eventsAPI, participantsAPI } from "@/lib/api";
+import type { Event } from "@/types/event";
+import type { ApiError } from "@/types/auth";
+
+// Helper para converter Event do backend para formato do EventCard
+const eventToCardProps = (event: Event) => {
+    const categoryMap: Record<string, "workshop" | "festa" | "palestra" | "minicurso"> = {
+        WORKSHOP: "workshop",
+        FESTA: "festa",
+        PALESTRA: "palestra",
+        MINICURSO: "minicurso",
+        OUTRO: "workshop" // fallback
+    };
+
+    // Formatar data e hora
+    const startDate = new Date(event.startDateTime);
+    const endDate = new Date(event.endDateTime);
+    
+    const dateStr = startDate.toLocaleDateString('pt-BR', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+    });
+    
+    const timeStr = `${startDate.toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    })}-${endDate.toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    })}`;
+
+    return {
+        id: event.id,
+        title: event.title,
+        date: dateStr,
+        time: timeStr,
+        location: event.location || "Local a definir",
+        image: (event.imgUrl && event.imgUrl.trim() !== '') ? event.imgUrl : "/logo.png",
+        category: categoryMap[event.eventType] || "workshop",
+        price: event.isPaid && event.price ? event.price : null,
+        participants: event.maxAttendees || 0,
+    };
+};
 
 export default function MyEventsPage() {
-    // Mock data - Eventos que estou participando
-    const participatingEvents = [
-        {
-            id: "1",
-            title: "Workshop de Inteligência Artificial na Prática",
-            date: "15 Nov 2025",
-            time: "14h-18h",
-            location: "Laboratório de Computação - Bloco A",
-            image: "https://images.unsplash.com/photo-1591453089816-0fbb971b454c?w=500",
-            category: "workshop" as const,
-            price: null,
-            participants: 45
-        },
-        {
-            id: "3",
-            title: "Palestra: O Futuro da Tecnologia Educacional",
-            date: "18 Nov 2025",
-            time: "10h-12h",
-            location: "Auditório Central",
-            image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=500",
-            category: "palestra" as const,
-            price: null,
-            participants: 180
-        },
-        {
-            id: "5",
-            title: "Workshop: Introdução ao React e TypeScript",
-            date: "25 Nov 2025",
-            time: "14h-17h",
-            location: "Laboratório de Programação",
-            image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=500",
-            category: "workshop" as const,
-            price: null,
-            participants: 40
-        },
-        {
-            id: "8",
-            title: "Minicurso: Fotografia para Iniciantes",
-            date: "02 Dez 2025",
-            time: "15h-17h",
-            location: "Estúdio de Artes",
-            image: "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=500",
-            category: "minicurso" as const,
-            price: 20.00,
-            participants: 25
-        }
-    ];
+    const { user, isAuthenticated } = useAuth();
+    const navigate = useNavigate();
+    const [participatingEvents, setParticipatingEvents] = useState<Event[]>([]);
+    const [createdEvents, setCreatedEvents] = useState<Event[]>([]);
+    const [isLoadingParticipating, setIsLoadingParticipating] = useState(true);
+    const [isLoadingCreated, setIsLoadingCreated] = useState(true);
 
-    // Mock data - Eventos que criei
-    const myCreatedEvents = [
-        {
-            id: "2",
-            title: "Festa de Integração dos Calouros 2025",
-            date: "20 Nov 2025",
-            time: "20h-02h",
-            location: "Centro de Convivência Universitária",
-            image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=500",
-            category: "festa" as const,
-            price: 25.00,
-            participants: 250
-        },
-        {
-            id: "4",
-            title: "Workshop de Design Thinking Aplicado",
-            date: "22 Nov 2025",
-            time: "09h-13h",
-            location: "Sala de Inovação - Bloco B",
-            image: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=500",
-            category: "workshop" as const,
-            price: 15.00,
-            participants: 30
-        },
-        {
-            id: "7",
-            title: "Carreira em Tecnologia: Desafios e Oportunidades",
-            date: "30 Nov 2025",
-            time: "19h-21h",
-            location: "Auditório 201",
-            image: "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=500",
-            category: "palestra" as const,
-            price: null,
-            participants: 120
+    useEffect(() => {
+        if (!isAuthenticated || !user) {
+            toast.info('Faça login para ver seus eventos');
+            navigate('/login');
+            return;
         }
-    ];
+
+        fetchParticipatingEvents();
+        fetchCreatedEvents();
+    }, [isAuthenticated, user]);
+
+    const fetchParticipatingEvents = async () => {
+        if (!user) return;
+
+        try {
+            setIsLoadingParticipating(true);
+            const participations = await participantsAPI.getUserParticipations(user.id);
+            
+            // Buscar detalhes de cada evento
+            const eventsPromises = participations.map(p => 
+                eventsAPI.getEventById(p.eventId)
+            );
+            const events = await Promise.all(eventsPromises);
+            
+            setParticipatingEvents(events);
+        } catch (error) {
+            const apiError = error as ApiError;
+            toast.error(apiError.message || 'Erro ao carregar eventos de participação');
+        } finally {
+            setIsLoadingParticipating(false);
+        }
+    };
+
+    const fetchCreatedEvents = async () => {
+        if (!user) return;
+
+        try {
+            setIsLoadingCreated(true);
+            const events = await eventsAPI.getEventsByOrganizer(user.id);
+            setCreatedEvents(events);
+        } catch (error) {
+            const apiError = error as ApiError;
+            toast.error(apiError.message || 'Erro ao carregar eventos criados');
+        } finally {
+            setIsLoadingCreated(false);
+        }
+    };
+
+    const calculateTotalReach = (): number => {
+        return createdEvents.reduce((total: number, event: Event) => {
+            return total + (event.maxAttendees || 0);
+        }, 0);
+    };
 
     return (
         <EventsLayout>
@@ -140,7 +163,7 @@ export default function MyEventsPage() {
                         <div className="flex items-center justify-between mb-4">
                             <Plus className="h-10 w-10 opacity-80" />
                             <div className="text-right">
-                                <p className="text-3xl font-bold">{myCreatedEvents.length}</p>
+                                <p className="text-3xl font-bold">{createdEvents.length}</p>
                                 <p className="text-sm opacity-90">eventos</p>
                             </div>
                         </div>
@@ -154,9 +177,9 @@ export default function MyEventsPage() {
                             <Trophy className="h-10 w-10 opacity-80" />
                             <div className="text-right">
                                 <p className="text-3xl font-bold">
-                                    {myCreatedEvents.reduce((acc, event) => acc + event.participants, 0)}
+                                    {calculateTotalReach()}
                                 </p>
-                                <p className="text-sm opacity-90">pessoas</p>
+                                <p className="text-sm opacity-90">vagas</p>
                             </div>
                         </div>
                         <p className="font-semibold">Alcance Total</p>
@@ -184,16 +207,20 @@ export default function MyEventsPage() {
                                 className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#ff914d] data-[state=active]:shadow-md transition-all font-semibold"
                             >
                                 <Plus className="h-5 w-5 mr-2" />
-                                Criados ({myCreatedEvents.length})
+                                Criados ({createdEvents.length})
                             </TabsTrigger>
                         </TabsList>
 
                         {/* Tab: Eventos que estou participando */}
                         <TabsContent value="participating" className="mt-8">
-                            {participatingEvents.length > 0 ? (
+                            {isLoadingParticipating ? (
+                                <div className="flex justify-center items-center py-20">
+                                    <Loader2 className="h-12 w-12 animate-spin text-[#ff914d]" />
+                                </div>
+                            ) : participatingEvents.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {participatingEvents.map((event, index) => (
-                                        <EventCard key={event.id} {...event} delay={index * 0.1} />
+                                        <EventCard key={event.id} {...eventToCardProps(event)} delay={index * 0.1} />
                                     ))}
                                 </div>
                             ) : (
@@ -209,7 +236,11 @@ export default function MyEventsPage() {
 
                         {/* Tab: Eventos que criei */}
                         <TabsContent value="created" className="mt-8">
-                            {myCreatedEvents.length > 0 ? (
+                            {isLoadingCreated ? (
+                                <div className="flex justify-center items-center py-20">
+                                    <Loader2 className="h-12 w-12 animate-spin text-[#ff914d]" />
+                                </div>
+                            ) : createdEvents.length > 0 ? (
                                 <>
                                     <div className="flex justify-end mb-6">
                                         <Link to="/criar-evento">
@@ -220,8 +251,8 @@ export default function MyEventsPage() {
                                         </Link>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {myCreatedEvents.map((event, index) => (
-                                            <EventCard key={event.id} {...event} delay={index * 0.1} />
+                                        {createdEvents.map((event, index) => (
+                                            <EventCard key={event.id} {...eventToCardProps(event)} delay={index * 0.1} />
                                         ))}
                                     </div>
                                 </>
