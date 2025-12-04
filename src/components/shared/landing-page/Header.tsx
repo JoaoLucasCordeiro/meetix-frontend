@@ -15,11 +15,22 @@ export default function Header() {
 
     const navigation = [
         { name: "Início", href: "/" },
-        { name: "Sobre nós", href: "/sobre" },
-        { name: "Equipe", href: "/equipe" },
+        { name: "Sobre nós", href: "/#about" },
+        { name: "Equipe", href: "/#team" },
     ];
 
     const isActive = (path: string) => location.pathname === path;
+
+    const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+        if (href.startsWith("/#")) {
+            e.preventDefault();
+            const id = href.substring(2);
+            const element = document.getElementById(id);
+            if (element) {
+                element.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }
+    };
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-[#ff914d]/20 bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/70">
@@ -27,14 +38,14 @@ export default function Header() {
                 <div className="flex h-20 items-center justify-between">
                     <Link to="/" className="flex items-center space-x-4">
                         <img
-                            src="/logo.png"
-                            alt="Meetix Logo"
+                            src="/logo-header.png"
+                            alt="Zuê Logo"
                             className="
-                    h-24 w-auto
-                    md:h-32
-                    lg:h-40
+                    h-8 w-auto
+                    md:h-11
+                    lg:h-14
                     transition-all duration-300
-                    max-h-[20vw]
+                    max-h-[7vw]
                 "
                             style={{ maxWidth: "100%" }}
                         />
@@ -45,6 +56,7 @@ export default function Header() {
                             <Link
                                 key={item.name}
                                 to={item.href}
+                                onClick={(e) => handleNavClick(e, item.href)}
                                 className={`text-base font-medium transition-all duration-300 hover:text-[#ff914d] px-2 py-1 rounded-lg ${isActive(item.href)
                                         ? "text-[#ff914d] bg-[#ff914d]/10"
                                         : "text-[#191919] hover:bg-[#ff914d]/5"
@@ -91,13 +103,13 @@ export default function Header() {
                                         <div className="flex items-center gap-3 mb-2">
                                             <img
                                                 src="/logo.png"
-                                                alt="Meetix Logo"
+                                                alt="Zuê Logo"
                                                 className="
-                    h-24 w-auto
-                    md:h-32
-                    lg:h-40
+                    h-8 w-auto
+                    md:h-11
+                    lg:h-14
                     transition-all duration-300
-                    max-h-[20vw]
+                    max-h-[7vw]
                 "
                                                 style={{ maxWidth: "100%" }}
                                             />
@@ -110,7 +122,10 @@ export default function Header() {
                                             <SheetClose asChild key={item.name}>
                                                 <Link
                                                     to={item.href}
-                                                    onClick={() => setIsOpen(false)}
+                                                    onClick={(e) => {
+                                                        handleNavClick(e, item.href);
+                                                        setIsOpen(false);
+                                                    }}
                                                     className={`text-lg font-medium transition-all duration-300 py-3 px-4 rounded-xl ${isActive(item.href)
                                                             ? "text-[#ff914d] bg-[#ff914d]/10"
                                                             : "text-[#191919] hover:text-[#ff914d] hover:bg-[#ff914d]/5"

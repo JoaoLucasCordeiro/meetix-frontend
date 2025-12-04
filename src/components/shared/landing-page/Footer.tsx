@@ -11,13 +11,13 @@ export default function Footer() {
                         <div className="flex items-center gap-2">
                             <img
                                 src="/logo-white.png"
-                                alt="Meetix Logo"
+                                alt="Zuê Logo"
                                 className="
-                    h-24 w-auto
-                    md:h-32
-                    lg:h-40
+                    h-8 w-auto
+                    md:h-11
+                    lg:h-14
                     transition-all duration-300
-                    max-h-[20vw]
+                    max-h-[7vw]
                 "
                                 style={{ maxWidth: "100%" }}
                             />
@@ -111,7 +111,7 @@ export default function Footer() {
                         <div className="space-y-3">
                             <div className="flex items-center gap-3">
                                 <Mail className="h-4 w-4 text-[#ff914d]" />
-                                <span className="text-gray-400 text-sm">contato@meetix.com</span>
+                                <span className="text-gray-400 text-sm">contato@Zuê.com</span>
                             </div>
                             <div className="flex items-center gap-3">
                                 <Phone className="h-4 w-4 text-[#ff914d]" />
@@ -129,7 +129,7 @@ export default function Footer() {
                 <div className="border-t border-gray-800 mt-12 pt-8">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <p className="text-gray-400 text-sm">
-                            © {new Date().getFullYear()} Meetix. Todos os direitos reservados.
+                            © {new Date().getFullYear()} Zuê. Todos os direitos reservados.
                         </p>
                         <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-[#ff914d]" />
