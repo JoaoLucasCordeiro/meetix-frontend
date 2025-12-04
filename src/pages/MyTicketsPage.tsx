@@ -24,6 +24,7 @@ export default function MyTicketsPage() {
     const [statusFilter, setStatusFilter] = useState<TicketStatus | 'ALL'>('ALL');
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [downloadingTicket, setDownloadingTicket] = useState<string | null>(null);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -92,17 +93,68 @@ export default function MyTicketsPage() {
 
         toast.info(`Baixando ${validTickets.length} ${validTickets.length === 1 ? 'ingresso' : 'ingressos'}...`);
 
+        let successCount = 0;
+        let errorCount = 0;
+
         for (const ticket of validTickets) {
             try {
-                await ticketsAPI.downloadTicketPDF(ticket.validationCode);
-                // Pequeno delay entre downloads
-                await new Promise(resolve => setTimeout(resolve, 500));
+                const blob = await ticketsAPI.downloadTicketPDF(ticket.validationCode);
+                
+                // Criar link temporário e fazer download
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `ingresso-${ticket.eventTitle.replace(/\s+/g, '-')}-${ticket.validationCode.substring(0, 8)}.pdf`);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(url);
+                
+                successCount++;
+                
+                // Pequeno delay entre downloads para não sobrecarregar
+                await new Promise(resolve => setTimeout(resolve, 800));
             } catch (error) {
                 console.error(`Erro ao baixar ingresso ${ticket.validationCode}:`, error);
+                errorCount++;
             }
         }
 
-        toast.success('Download concluído!');
+        if (errorCount === 0) {
+            toast.success(`${successCount} ${successCount === 1 ? 'ingresso baixado' : 'ingressos baixados'} com sucesso!`);
+        } else {
+            toast.warning(`${successCount} baixados, ${errorCount} com erro`);
+        }
+    };
+
+    const handleDownloadTicket = async (validationCode: string, eventTitle: string) => {
+        if (downloadingTicket) {
+            toast.info('Aguarde o download anterior terminar');
+            return;
+        }
+
+        try {
+            setDownloadingTicket(validationCode);
+            
+            const blob = await ticketsAPI.downloadTicketPDF(validationCode);
+            
+            // Criar link temporário e fazer download
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `ingresso-${eventTitle.replace(/\s+/g, '-')}-${validationCode.substring(0, 8)}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            
+            toast.success('Ingresso baixado com sucesso!');
+        } catch (error) {
+            const apiError = error as ApiError;
+            toast.error(apiError.message || 'Erro ao baixar ingresso');
+        } finally {
+            setDownloadingTicket(null);
+        }
     };
 
     if (isLoading) {
@@ -253,7 +305,8 @@ export default function MyTicketsPage() {
                             >
                                 <TicketCard 
                                     ticket={ticket}
-                                    onDownload={() => ticketsAPI.downloadTicketPDF(ticket.validationCode)}
+                                    onDownload={() => handleDownloadTicket(ticket.validationCode, ticket.eventTitle)}
+                                    isDownloading={downloadingTicket === ticket.validationCode}
                                 />
                             </motion.div>
                         ))}
