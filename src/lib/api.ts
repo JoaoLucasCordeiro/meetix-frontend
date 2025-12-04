@@ -383,11 +383,7 @@ export const ticketsAPI = {
   // Download PDF do ingresso
   async downloadTicketPDF(validationCode: string): Promise<Blob> {
     const token = localStorage.getItem('token');
-    const url = `${API_BASE_URL}/api/tickets/${validationCode}/pdf`;
-    
-    console.log('Downloading ticket PDF from:', url);
-    console.log('Validation code:', validationCode);
-    console.log('Token exists:', !!token);
+    const url = `${API_BASE_URL}/api/tickets/download/${validationCode}`;
     
     try {
       const response = await fetch(url, {
@@ -397,16 +393,21 @@ export const ticketsAPI = {
         },
       });
 
-      console.log('Response status:', response.status);
-
       if (!response.ok) {
         let errorMessage = 'Erro ao baixar ingresso';
         try {
           const errorData = await response.json();
-          console.log('Error response data:', errorData);
           errorMessage = errorData.message || errorMessage;
         } catch {
-          errorMessage = `Erro ${response.status}: ${response.statusText}`;
+          if (response.status === 403) {
+            errorMessage = 'Você só pode baixar seus próprios ingressos';
+          } else if (response.status === 404) {
+            errorMessage = 'Ingresso não encontrado';
+          } else if (response.status === 400) {
+            errorMessage = 'Não é possível baixar ingresso cancelado';
+          } else {
+            errorMessage = `Erro ${response.status}: ${response.statusText}`;
+          }
         }
         
         const error: ApiError = {
@@ -417,10 +418,15 @@ export const ticketsAPI = {
       }
 
       const blob = await response.blob();
-      console.log('Ticket blob received successfully, size:', blob.size, 'type:', blob.type);
+      
+      // Verificar se realmente é um PDF
+      if (!blob.type.includes('pdf')) {
+        throw new Error('Resposta inválida do servidor (não é PDF)');
+      }
+      
       return blob;
     } catch (error) {
-      console.error('Download ticket error:', error);
+      console.error('Erro ao baixar PDF do ingresso:', error);
       throw error;
     }
   },
@@ -432,9 +438,28 @@ export const ticketsAPI = {
 
   // Check-in via QR Code (valida e marca como USED)
   async validateTicket(validationCode: string): Promise<EventTicket> {
-    return await fetchAPI<EventTicket>(`/api/tickets/${validationCode}/validate`, {
-      method: 'POST',
-    });
+    console.log('📡 Validando ticket via API:', validationCode);
+    
+    try {
+      // Backend aceita ambos endpoints
+      const response = await fetchAPI<any>(`/api/tickets/validate/${validationCode}`, {
+        method: 'POST',
+      });
+      
+      console.log('✅ Resposta da API:', response);
+      
+      // Backend retorna { valid, message, ticket, validatedAt }
+      // Extrair e retornar o ticket
+      if (response.ticket) {
+        return response.ticket;
+      }
+      
+      // Fallback: se backend retornar ticket diretamente
+      return response;
+    } catch (error) {
+      console.error('❌ Erro na API de validação:', error);
+      throw error;
+    }
   },
 
   // Listar histórico de validações de um evento
@@ -447,25 +472,69 @@ export const ticketsAPI = {
 export const feedbackAPI = {
   // Enviar feedback para um evento
   async submitFeedback(feedbackData: CreateFeedbackRequest): Promise<Feedback> {
-    return await fetchAPI<Feedback>('/api/feedbacks', {
-      method: 'POST',
-      body: JSON.stringify(feedbackData),
-    });
+    console.log('📡 [API] Enviando feedback - Payload completo:', feedbackData);
+    console.log('📡 [API] Payload JSON:', JSON.stringify(feedbackData));
+    console.log('📡 [API] Token presente:', !!localStorage.getItem('token'));
+    console.log('📡 [API] Endpoint:', '/api/feedbacks');
+    
+    try {
+      const response = await fetchAPI<Feedback>('/api/feedbacks', {
+        method: 'POST',
+        body: JSON.stringify(feedbackData),
+      });
+      console.log('✅ [API] Feedback enviado com sucesso:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ [API] Erro ao enviar feedback:', error);
+      console.error('❌ [API] Tipo do erro:', typeof error);
+      console.error('❌ [API] Erro serializado:', JSON.stringify(error, null, 2));
+      throw error;
+    }
   },
 
   // Listar feedbacks de um evento (organizador)
   async getEventFeedbacks(eventId: string): Promise<Feedback[]> {
-    return await fetchAPI<Feedback[]>(`/api/feedbacks/event/${eventId}`);
+    console.log('📡 [API] Buscando feedbacks do evento:', eventId);
+    
+    try {
+      const feedbacks = await fetchAPI<Feedback[]>(`/api/feedback/event/${eventId}`);
+      console.log('✅ [API] Feedbacks carregados:', feedbacks.length);
+      return feedbacks;
+    } catch (error) {
+      console.error('❌ [API] Erro ao buscar feedbacks:', error);
+      throw error;
+    }
   },
 
   // Obter estatísticas de feedback de um evento
   async getFeedbackStats(eventId: string): Promise<FeedbackStats> {
-    return await fetchAPI<FeedbackStats>(`/api/feedbacks/event/${eventId}/stats`);
+    console.log('📡 [API] Buscando estatísticas de feedbacks do backend...');
+    
+    try {
+      const stats = await fetchAPI<FeedbackStats>(`/api/feedbacks/event/${eventId}/stats`);
+      console.log('✅ [API] Estatísticas carregadas:', stats);
+      return stats;
+    } catch (error) {
+      console.error('❌ [API] Erro ao buscar estatísticas:', error);
+      throw error;
+    }
   },
 
   // Verificar se usuário já deu feedback no evento
   async hasUserFeedback(eventId: string): Promise<{ hasFeedback: boolean }> {
-    return await fetchAPI<{ hasFeedback: boolean }>(`/api/feedbacks/event/${eventId}/user/has-feedback`);
+    console.log('📡 [API] Verificando feedback existente para evento:', eventId);
+    
+    try {
+      // Backend retorna true/false diretamente
+      const hasFeedback = await fetchAPI<boolean>(
+        `/api/feedback/event/${eventId}/user/has-feedback`
+      );
+      console.log('✅ [API] Resposta da verificação de feedback:', hasFeedback);
+      return { hasFeedback };
+    } catch (error) {
+      console.error('❌ [API] Erro ao verificar feedback:', error);
+      throw error;
+    }
   },
 };
 
