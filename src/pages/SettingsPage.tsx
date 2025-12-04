@@ -347,7 +347,7 @@ export default function SettingsPage() {
                                     </SelectContent>
                                 </Select>
                                 <p className="text-sm text-[#191919]/60">
-                                    Escolha como o Meetix aparece para você. O tema do sistema ajusta automaticamente
+                                    Escolha como o Zuê aparece para você. O tema do sistema ajusta automaticamente
                                     com base nas configurações do seu dispositivo.
                                 </p>
                             </div>
@@ -470,7 +470,7 @@ export default function SettingsPage() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-[#191919]/60">E-mail</p>
-                                    <p className="font-semibold text-[#191919]">contato@meetix.com</p>
+                                    <p className="font-semibold text-[#191919]">contato@Zuê.com</p>
                                 </div>
                             </div>
 
@@ -500,7 +500,7 @@ export default function SettingsPage() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-[#191919]/60">Instagram</p>
-                                    <p className="font-semibold text-[#191919]">@meetix.oficial</p>
+                                    <p className="font-semibold text-[#191919]">@Zuê.oficial</p>
                                 </div>
                             </div>
                         </div>
