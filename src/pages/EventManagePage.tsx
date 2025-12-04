@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EventsLayout from "@/components/layouts/EventsLayouts";
 import ValidationModal from "@/components/ticket/ValidationModal";
+import ConfirmationModal from "@/components/shared/all/ConfirmationModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { eventsAPI, participantsAPI, badgesAPI, ticketOrdersAPI, ticketsAPI, feedbackAPI, certificateAPI, couponAPI } from "@/lib/api";
 import type { Event } from "@/types/event";
@@ -95,6 +96,8 @@ export default function EventManagePage() {
     const [isLoadingFeedbacks, setIsLoadingFeedbacks] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isDeletingEvent, setIsDeletingEvent] = useState(false);
     const [inviteEmail, setInviteEmail] = useState("");
     const [isSendingInvite, setIsSendingInvite] = useState(false);
     
@@ -264,6 +267,14 @@ export default function EventManagePage() {
             setFeedbacks(data);
         } catch (error) {
             console.error('Erro ao carregar feedbacks:', error);
+            const apiError = error as ApiError;
+            // Se erro 403, usuário não é organizador
+            if (apiError.status === 403) {
+                toast.error('Apenas o organizador pode ver os feedbacks deste evento');
+            } else if (apiError.status === 500) {
+                console.warn('⚠️ Endpoint de feedbacks ainda não implementado no backend');
+            }
+            setFeedbacks([]); // Array vazio em caso de erro
         } finally {
             setIsLoadingFeedbacks(false);
         }
@@ -277,6 +288,16 @@ export default function EventManagePage() {
             setFeedbackStats(data);
         } catch (error) {
             console.error('Erro ao carregar estatísticas de feedbacks:', error);
+            // Setar stats padrão em caso de erro (compatível com novo formato do backend)
+            setFeedbackStats({
+                total: 0,
+                averageRating: 0,
+                rating1: 0,
+                rating2: 0,
+                rating3: 0,
+                rating4: 0,
+                rating5: 0
+            });
         }
     };
 
@@ -514,19 +535,18 @@ export default function EventManagePage() {
     const handleDeleteEvent = async () => {
         if (!id || !event) return;
 
-        const confirmed = window.confirm(
-            `Tem certeza que deseja deletar o evento "${event.title}"? Esta ação não pode ser desfeita e todos os participantes serão removidos.`
-        );
-
-        if (!confirmed) return;
+        setIsDeletingEvent(true);
 
         try {
             await eventsAPI.deleteEvent(id);
             toast.success('Evento deletado com sucesso');
+            setShowDeleteModal(false);
             navigate('/meus-eventos');
         } catch (error) {
             const apiError = error as ApiError;
             toast.error(apiError.message || 'Erro ao deletar evento');
+        } finally {
+            setIsDeletingEvent(false);
         }
     };
 
@@ -853,7 +873,7 @@ export default function EventManagePage() {
                                         Deletar este evento removerá permanentemente todos os dados, incluindo participantes e inscrições.
                                     </p>
                                     <Button
-                                        onClick={handleDeleteEvent}
+                                        onClick={() => setShowDeleteModal(true)}
                                         variant="outline"
                                         className="border-red-500 text-red-600 hover:bg-red-50"
                                     >
@@ -2119,7 +2139,7 @@ export default function EventManagePage() {
                                                 <MessageSquare className="h-6 w-6 text-purple-600" />
                                             </div>
                                             <p className="text-3xl font-bold text-purple-900">
-                                                {feedbackStats.totalFeedbacks}
+                                                {feedbackStats.total || feedbackStats.totalFeedbacks || 0}
                                             </p>
                                         </div>
 
@@ -2130,14 +2150,14 @@ export default function EventManagePage() {
                                                 <Star className="h-6 w-6 text-yellow-600 fill-yellow-600" />
                                             </div>
                                             <p className="text-3xl font-bold text-yellow-900">
-                                                {feedbackStats.averageRating.toFixed(1)} / 5.0
+                                                {(feedbackStats.averageRating ?? 0).toFixed(1)} / 5.0
                                             </p>
                                             <div className="flex gap-1 mt-2">
                                                 {[1, 2, 3, 4, 5].map((star) => (
                                                     <Star
                                                         key={star}
                                                         className={`h-5 w-5 ${
-                                                            star <= Math.round(feedbackStats.averageRating)
+                                                            star <= Math.round(feedbackStats.averageRating ?? 0)
                                                                 ? 'text-yellow-500 fill-yellow-500'
                                                                 : 'text-gray-300'
                                                         }`}
@@ -2153,10 +2173,12 @@ export default function EventManagePage() {
                                             </div>
                                             <div className="space-y-2">
                                                 {[5, 4, 3, 2, 1].map((stars) => {
-                                                    const count = feedbackStats.ratingDistribution[`stars${stars}` as keyof typeof feedbackStats.ratingDistribution] || 0;
-                                                    const percentage = feedbackStats.totalFeedbacks > 0 
-                                                        ? (count / feedbackStats.totalFeedbacks) * 100 
-                                                        : 0;
+                                                    // Compatibilidade com backend novo (rating1-5) e antigo (ratingDistribution)
+                                                    const count = feedbackStats[`rating${stars}` as keyof FeedbackStats] as number || 
+                                                                  feedbackStats.ratingDistribution?.[`stars${stars}` as keyof typeof feedbackStats.ratingDistribution] || 
+                                                                  0;
+                                                    const total = feedbackStats.total || feedbackStats.totalFeedbacks || 0;
+                                                    const percentage = total > 0 ? (count / total) * 100 : 0;
                                                     
                                                     return (
                                                         <div key={stars} className="flex items-center gap-2 text-sm">
@@ -2209,7 +2231,7 @@ export default function EventManagePage() {
                                                                 {feedback.userName}
                                                             </p>
                                                             <p className="text-sm text-gray-600">
-                                                                {new Date(feedback.createdAt).toLocaleString('pt-BR', {
+                                                                {new Date(feedback.sentAt || feedback.createdAt || '').toLocaleString('pt-BR', {
                                                                     day: '2-digit',
                                                                     month: 'long',
                                                                     year: 'numeric',
@@ -2221,26 +2243,45 @@ export default function EventManagePage() {
                                                     </div>
 
                                                     {/* Estrelas de Avaliação */}
-                                                    <div className="flex gap-1">
-                                                        {[1, 2, 3, 4, 5].map((star) => (
-                                                            <Star
-                                                                key={star}
-                                                                className={`h-5 w-5 ${
-                                                                    star <= feedback.rating
-                                                                        ? 'text-yellow-500 fill-yellow-500'
-                                                                        : 'text-gray-300'
-                                                                }`}
-                                                            />
-                                                        ))}
-                                                    </div>
+                                                    {feedback.rating && (
+                                                        <div className="flex gap-1">
+                                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                                <Star
+                                                                    key={star}
+                                                                    className={`h-5 w-5 ${
+                                                                        star <= feedback.rating!
+                                                                            ? 'text-yellow-500 fill-yellow-500'
+                                                                            : 'text-gray-300'
+                                                                    }`}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 {/* Comentário */}
-                                                {feedback.comment && (
+                                                {(feedback.message || feedback.comment) && (
                                                     <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
                                                         <p className="text-[#191919] leading-relaxed whitespace-pre-wrap">
-                                                            {feedback.comment}
+                                                            {feedback.message || feedback.comment}
                                                         </p>
+                                                    </div>
+                                                )}
+
+                                                {/* Tipo de Feedback */}
+                                                {feedback.feedbackType && (
+                                                    <div className="mt-3">
+                                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                                                            feedback.feedbackType === 'PRAISE' ? 'bg-green-100 text-green-800' :
+                                                            feedback.feedbackType === 'SUGGESTION' ? 'bg-blue-100 text-blue-800' :
+                                                            feedback.feedbackType === 'COMPLAINT' ? 'bg-red-100 text-red-800' :
+                                                            'bg-gray-100 text-gray-800'
+                                                        }`}>
+                                                            {feedback.feedbackType === 'PRAISE' ? '👏 Elogio' :
+                                                             feedback.feedbackType === 'SUGGESTION' ? '💡 Sugestão' :
+                                                             feedback.feedbackType === 'COMPLAINT' ? '⚠️ Reclamação' :
+                                                             '📝 Feedback'}
+                                                        </span>
                                                     </div>
                                                 )}
                                             </div>
@@ -2359,6 +2400,19 @@ export default function EventManagePage() {
                     onValidate={handleValidateOrder}
                 />
             )}
+
+            {/* Delete Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showDeleteModal}
+                onClose={() => setShowDeleteModal(false)}
+                onConfirm={handleDeleteEvent}
+                title="Deletar Evento"
+                message={`Tem certeza que deseja deletar o evento "${event?.title}"? Esta ação não pode ser desfeita e todos os participantes, ingressos e dados relacionados serão removidos permanentemente.`}
+                confirmText="Sim, deletar"
+                cancelText="Cancelar"
+                variant="danger"
+                isLoading={isDeletingEvent}
+            />
         </EventsLayout>
     );
 }
