@@ -1,11 +1,38 @@
-import { Calendar, Plus, List, Settings, LogOut, TrendingUp } from "lucide-react";
+import { Calendar, Plus, List, Settings, LogOut, TrendingUp, Ticket, Receipt, Bell, Menu, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { notificationAPI } from "@/lib/api";
 
-export default function Sidebar() {
+interface SidebarProps {
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     const location = useLocation();
     const navigate = useNavigate();
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    useEffect(() => {
+        // Fetch initial unread count
+        fetchUnreadCount();
+
+        // Poll for new notifications every 30 seconds
+        const interval = setInterval(fetchUnreadCount, 30000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    const fetchUnreadCount = async () => {
+        try {
+            const result = await notificationAPI.getUnreadCount();
+            setUnreadCount(result.count);
+        } catch (error) {
+            console.error('Erro ao buscar notificações:', error);
+        }
+    };
 
     const menuItems = [
         {
@@ -27,6 +54,25 @@ export default function Sidebar() {
             description: "Eventos que você participa"
         },
         {
+            name: "Notificações",
+            href: "/notificacoes",
+            icon: Bell,
+            description: "Suas notificações",
+            badge: unreadCount
+        },
+        {
+            name: "Meus Ingressos",
+            href: "/meus-ingressos",
+            icon: Ticket,
+            description: "Ingressos aprovados"
+        },
+        {
+            name: "Meus Pedidos",
+            href: "/meus-pedidos",
+            icon: Receipt,
+            description: "Pedidos de ingressos"
+        },
+        {
             name: "Opções",
             href: "/opcoes",
             icon: Settings,
@@ -42,19 +88,51 @@ export default function Sidebar() {
         navigate("/login");
     };
 
+    const handleLinkClick = () => {
+        // Fecha o sidebar em mobile quando um link é clicado
+        if (window.innerWidth < 1024) {
+            onClose();
+        }
+    };
+
     return (
-        <motion.aside
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            className="fixed right-0 top-0 h-screen w-80 bg-white border-l border-gray-200 shadow-lg overflow-y-auto z-40"
-        >
+        <>
+            {/* Overlay para mobile */}
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                        onClick={onClose}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* Sidebar */}
+            <aside
+                className={`fixed left-0 top-0 h-screen w-80 bg-white border-r border-gray-200 shadow-lg overflow-y-auto z-50 transition-transform duration-300 ease-in-out
+                    ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+                    lg:translate-x-0
+                `}
+            >
             <div className="p-6 space-y-6">
+                {/* Close button for mobile */}
+                <button
+                    onClick={onClose}
+                    className="lg:hidden absolute top-4 right-4 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    aria-label="Fechar menu"
+                >
+                    <X className="h-6 w-6 text-[#191919]" />
+                </button>
+
                 {/* Logo/Header */}
                 <div className="flex flex-col items-center pb-6 border-b border-gray-200">
                     <img
                         src="/logo.png"
-                        alt="Meetix Logo"
+                        alt="Zuê Logo"
                         className="h-20 w-auto mb-3"
                     />
                     <p className="text-sm text-[#191919]/70 text-center">
@@ -69,23 +147,30 @@ export default function Sidebar() {
                         return (
                             <motion.div
                                 key={item.name}
-                                initial={{ opacity: 0, x: 20 }}
+                                initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: index * 0.1 }}
                             >
-                                <Link to={item.href}>
+                                <Link to={item.href} onClick={handleLinkClick}>
                                     <div
-                                        className={`flex items-start gap-3 p-4 rounded-xl transition-all duration-300 cursor-pointer group ${isActive(item.href)
+                                        className={`flex items-start gap-3 p-4 rounded-xl transition-all duration-300 cursor-pointer group relative ${isActive(item.href)
                                                 ? "bg-[#ff914d] text-white shadow-lg shadow-[#ff914d]/30"
                                                 : "bg-gray-50 hover:bg-[#ff914d]/10 text-[#191919]"
                                             }`}
                                     >
-                                        <Icon
-                                            className={`h-5 w-5 mt-0.5 transition-colors ${isActive(item.href)
-                                                    ? "text-white"
-                                                    : "text-[#ff914d] group-hover:text-[#ff7b33]"
-                                                }`}
-                                        />
+                                        <div className="relative">
+                                            <Icon
+                                                className={`h-5 w-5 mt-0.5 transition-colors ${isActive(item.href)
+                                                        ? "text-white"
+                                                        : "text-[#ff914d] group-hover:text-[#ff7b33]"
+                                                    }`}
+                                            />
+                                            {item.badge && item.badge > 0 && (
+                                                <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                                                    {item.badge > 99 ? '99+' : item.badge}
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="flex-1">
                                             <p
                                                 className={`font-semibold text-sm mb-0.5 ${isActive(item.href)
@@ -147,6 +232,7 @@ export default function Sidebar() {
                     </p>
                 </motion.div>
             </div>
-        </motion.aside>
+        </aside>
+        </>
     );
 }
