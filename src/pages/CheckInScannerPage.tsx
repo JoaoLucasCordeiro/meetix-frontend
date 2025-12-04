@@ -10,11 +10,14 @@ import {
     Clock, 
     Users,
     ArrowLeft,
-    History
+    History,
+    Keyboard
 } from 'lucide-react';
 import EventsLayout from '@/components/layouts/EventsLayouts';
 import QRScanner from '@/components/checkin/QRScanner';
+import ManualValidationInput from '@/components/checkin/ManualValidationInput';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { eventsAPI, ticketsAPI } from '@/lib/api';
 import type { Event } from '@/types/event';
@@ -105,10 +108,12 @@ export default function CheckInScannerPage() {
 
         try {
             // O QR Code contém o validationCode (UUID)
-            console.log('QR Code detectado:', decodedText);
+            console.log('🔍 Validando ingresso:', decodedText);
 
             // Validar o ingresso
             const ticket = await ticketsAPI.validateTicket(decodedText);
+
+            console.log('✅ Validação bem-sucedida:', ticket);
 
             // Sucesso!
             const historyEntry: ScanHistory = {
@@ -134,24 +139,29 @@ export default function CheckInScannerPage() {
                 autoClose: 2000
             });
 
-            // Som de sucesso (opcional)
-            playSuccessSound();
-
         } catch (error) {
+            console.error('❌ Erro na validação:', error);
+            
             const apiError = error as ApiError;
             
             let errorMessage = 'Erro ao validar ingresso';
             let errorStatus: 'error' | 'duplicate' = 'error';
 
-            if (apiError.message.includes('já foi validado')) {
-                errorMessage = 'Ingresso já utilizado';
+            // Tratamento específico de erros
+            if (apiError.status === 500) {
+                errorMessage = 'Erro interno no servidor. Contate o suporte.';
+                console.error('Erro 500 detalhes:', apiError);
+            } else if (apiError.status === 404) {
+                errorMessage = 'Ingresso não encontrado no sistema';
+            } else if (apiError.status === 409 || apiError.message?.includes('já foi validado') || apiError.message?.includes('already')) {
+                errorMessage = 'Ingresso já foi utilizado anteriormente';
                 errorStatus = 'duplicate';
-            } else if (apiError.message.includes('cancelado')) {
+            } else if (apiError.message?.includes('cancelado') || apiError.message?.includes('cancelled')) {
                 errorMessage = 'Ingresso cancelado';
-            } else if (apiError.message.includes('inválido')) {
-                errorMessage = 'QR Code inválido';
-            } else {
-                errorMessage = apiError.message || errorMessage;
+            } else if (apiError.message?.includes('inválido') || apiError.message?.includes('invalid')) {
+                errorMessage = 'Código de validação inválido';
+            } else if (apiError.message) {
+                errorMessage = apiError.message;
             }
 
             const historyEntry: ScanHistory = {
@@ -169,25 +179,9 @@ export default function CheckInScannerPage() {
                 autoClose: 3000
             });
 
-            // Som de erro (opcional)
-            playErrorSound();
         } finally {
             setIsProcessing(false);
         }
-    };
-
-    const playSuccessSound = () => {
-        // Opcional: adicionar áudio de sucesso
-        const audio = new Audio('/sounds/success.mp3');
-        audio.volume = 0.3;
-        audio.play().catch(() => {});
-    };
-
-    const playErrorSound = () => {
-        // Opcional: adicionar áudio de erro
-        const audio = new Audio('/sounds/error.mp3');
-        audio.volume = 0.3;
-        audio.play().catch(() => {});
     };
 
     const getStatusIcon = (status: ScanHistory['status']) => {
@@ -291,21 +285,39 @@ export default function CheckInScannerPage() {
                 </motion.div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Scanner */}
+                    {/* Scanner e Validação Manual */}
                     <motion.div
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.2 }}
                     >
                         <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                            <h2 className="text-2xl font-bold text-[#191919] mb-6 flex items-center">
-                                <QrCode className="h-6 w-6 mr-3 text-[#ff914d]" />
-                                Scanner de QR Code
-                            </h2>
-                            <QRScanner 
-                                onScanSuccess={handleScanSuccess}
-                                isProcessing={isProcessing}
-                            />
+                            <Tabs defaultValue="scanner" className="w-full">
+                                <TabsList className="grid w-full grid-cols-2 mb-6">
+                                    <TabsTrigger value="scanner" className="data-[state=active]:bg-[#ff914d] data-[state=active]:text-white">
+                                        <QrCode className="h-4 w-4 mr-2" />
+                                        Scanner QR Code
+                                    </TabsTrigger>
+                                    <TabsTrigger value="manual" className="data-[state=active]:bg-[#ff914d] data-[state=active]:text-white">
+                                        <Keyboard className="h-4 w-4 mr-2" />
+                                        Código Manual
+                                    </TabsTrigger>
+                                </TabsList>
+
+                                <TabsContent value="scanner">
+                                    <QRScanner 
+                                        onScanSuccess={handleScanSuccess}
+                                        isProcessing={isProcessing}
+                                    />
+                                </TabsContent>
+
+                                <TabsContent value="manual">
+                                    <ManualValidationInput
+                                        onValidate={handleScanSuccess}
+                                        isProcessing={isProcessing}
+                                    />
+                                </TabsContent>
+                            </Tabs>
                         </div>
                     </motion.div>
 
