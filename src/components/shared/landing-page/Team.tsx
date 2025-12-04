@@ -7,9 +7,9 @@ export default function Team() {
     const teamMembers = [
         {
             name: "João Lucas",
-            role: "Dev Full-Stack e Gerente de Projeto",
-            image: "/joaolucas.jpeg", 
-            bio: "Lidera o desenvolvimento front-end e back-end, garantindo a qualidade e entrega do projeto.",
+            role: "Desenvolvedor Full-Stack e Co-Founder",
+            image: "/joaolucas.jpg", 
+            bio: "Estudante de Engenharia de Software pela Universidade de Pernambuco. Lidera o desenvolvimento e gerenciamento do projeto.",
             social: {
                 github: "#",
                 linkedin: "#",
@@ -18,9 +18,9 @@ export default function Team() {
         },
         {
             name: "João Gabriel",
-            role: "Dev Back-End",
+            role: "Desenvolvedor Back-End e Co-Founder",
             image: "/joaogabriel.jpeg",
-            bio: "Desenvolvedor back-end Spring Boot",
+            bio: "Estudante de Engenharia de Software pela Universidade de Pernambuco. Especializado em desenvolvimento back-end com Spring Boot.",
             social: {
                 github: "#",
                 linkedin: "#",
@@ -29,9 +29,9 @@ export default function Team() {
         },
         {
             name: "Ocimar Schroeder",
-            role: "Dev Back-End",
+            role: "Desenvolvedor Back-End e Co-Founder",
             image: "/ocimar.png",
-            bio: "Desenvolvedor back-end Spring Boot",
+            bio: "Estudante de Engenharia de Software pela Universidade de Pernambuco. Especializado em desenvolvimento back-end com Spring Boot.",
             social: {
                 github: "#",
                 linkedin: "#",
@@ -55,7 +55,7 @@ export default function Team() {
                         <Users className="h-6 w-6 text-[#ff914d]" />
                     </div>
                     <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-[#191919] mb-4">
-                        Conheça o time por trás do <span className="text-[#ff914d]">Meetix</span>
+                        Conheça o time por trás do <span className="text-[#ff914d]">Zuê</span>
                     </h2>
                     <p className="text-lg text-[#191919]/70 max-w-3xl mx-auto mb-8">
                         Nossa equipe apaixonada por tecnologia e educação está comprometida em transformar
