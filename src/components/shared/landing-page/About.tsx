@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 
 export default function About() {
     return (
-        <section className="w-full py-16 md:py-24 lg:py-32 bg-gradient-to-b from-white to-gray-50/30">
+        <section id="about" className="w-full py-16 md:py-24 lg:py-32 bg-gradient-to-b from-white to-gray-50/30">
             <div className="container px-4 md:px-6 mx-auto">
                 {/* Cabeçalho */}
                 <motion.div
@@ -19,7 +19,7 @@ export default function About() {
                         <Rocket className="h-6 w-6 text-[#ff914d]" />
                     </div>
                     <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-[#191919] mb-4">
-                        Sobre o <span className="text-[#ff914d]">Meetix</span>
+                        Sobre o <span className="text-[#ff914d]">Zuê</span>
                     </h2>
                     <p className="text-lg text-[#191919]/70 max-w-3xl mx-auto">
                         Conheça a plataforma que está transformando a maneira como a comunidade acadêmica cria e participa de eventos
@@ -38,31 +38,32 @@ export default function About() {
                         <div className="flex items-center gap-3 mb-2">
                             <img
                                 src="/logo.png"
-                                alt="Meetix Logo"
+                                alt="Zuê Logo"
                                 className="
-                    h-24 w-auto
-                    md:h-32
-                    lg:h-40
+                    h-8 w-auto
+                    md:h-11
+                    lg:h-14
                     transition-all duration-300
-                    max-h-[20vw]
+                    max-h-[7vw]
                 "
                                 style={{ maxWidth: "100%" }}
                             />
                         </div>
 
                         <h3 className="text-2xl md:text-3xl font-bold text-[#191919]">
-                            Revolucionando a experiência de eventos acadêmicos
+                            Nascido da necessidade real da comunidade acadêmica
                         </h3>
 
                         <p className="text-[#191919]/80 leading-relaxed">
-                            O Meetix nasceu da necessidade de simplificar a organização e participação em eventos acadêmicos.
-                            Nossa plataforma conecta organizadores e participantes em um ecossistema intuitivo, onde cada evento
-                            se torna uma oportunidade de aprendizado, networking e crescimento.
+                            O Zuê nasceu quando percebemos como era complicado organizar eventos na faculdade.
+                            Inscrições em planilhas, controle manual de presença, certificados impressos...
+                            Decidimos criar uma solução que facilitasse a vida de organizadores e participantes.
                         </p>
 
                         <p className="text-[#191919]/80 leading-relaxed">
-                            Utilizamos tecnologia de ponta para garantir que desde palestras e workshops até festas e encontros
-                            sejam facilmente gerenciados, promovidos e aproveitados por toda a comunidade universitária.
+                            Nossa missão é simples: tornar a gestão de eventos acadêmicos tão fácil quanto deveria ser.
+                            Estamos construindo uma plataforma que reúne tudo que você precisa em um só lugar,
+                            desde a criação até a emissão de certificados.
                         </p>
 
                         <div className="pt-4 flex flex-col sm:flex-row gap-4">
@@ -96,9 +97,9 @@ export default function About() {
                             <div className="bg-[#ff914d]/10 h-12 w-12 rounded-lg flex items-center justify-center mb-4">
                                 <Users className="h-6 w-6 text-[#ff914d]" />
                             </div>
-                            <h4 className="text-xl font-bold text-[#191919] mb-2">Comunidade Ativa</h4>
+                            <h4 className="text-xl font-bold text-[#191919] mb-2">Nossa Visão</h4>
                             <p className="text-[#191919]/70 text-sm">
-                                Mais de 20 mil estudantes e organizadores conectados
+                                Conectar toda a comunidade acadêmica através de eventos
                             </p>
                         </div>
 
@@ -108,7 +109,7 @@ export default function About() {
                             </div>
                             <h4 className="text-xl font-bold text-[#191919] mb-2">Missão</h4>
                             <p className="text-[#191919]/70 text-sm">
-                                Democratizar o acesso a eventos acadêmicos de qualidade
+                                Simplificar a gestão de eventos acadêmicos para todos
                             </p>
                         </div>
 
@@ -126,9 +127,9 @@ export default function About() {
                             <div className="bg-[#ff914d]/10 h-12 w-12 rounded-lg flex items-center justify-center mb-4">
                                 <Star className="h-6 w-6 text-[#ff914d]" />
                             </div>
-                            <h4 className="text-xl font-bold text-[#191919] mb-2">Excelência</h4>
+                            <h4 className="text-xl font-bold text-[#191919] mb-2">Inovação</h4>
                             <p className="text-[#191919]/70 text-sm">
-                                Avaliação média de 4.8/5 pelos nossos usuários
+                                Tecnologia moderna para resolver problemas reais
                             </p>
                         </div>
                     </motion.div>
@@ -144,12 +145,13 @@ export default function About() {
                 >
                     <div className="text-center max-w-3xl mx-auto">
                         <p className="text-xl md:text-2xl italic text-[#191919] mb-6">
-                            "O Meetix transformou completamente como organizamos nossos eventos na universidade.
-                            Agora conseguimos focar no que realmente importa: criar experiências incríveis para nossa comunidade."
+                            "Cansados de lidar com planilhas confusas e processos manuais para organizar eventos,
+                            decidimos criar a solução que gostaríamos de ter tido. O Zuê é feito por quem entende
+                            a dor de organizar eventos acadêmicos."
                         </p>
                         <div>
-                            <p className="font-semibold text-[#191919]">Carlos Silva</p>
-                            <p className="text-sm text-[#191919]/70">Diretor de Eventos - Universidade Federal</p>
+                            <p className="font-semibold text-[#191919]">Equipe Zuê</p>
+                            <p className="text-sm text-[#191919]/70">Estudantes e desenvolvedores</p>
                         </div>
                     </div>
                 </motion.div>
