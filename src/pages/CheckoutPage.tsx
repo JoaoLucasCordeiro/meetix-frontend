@@ -58,7 +58,7 @@ export default function CheckoutPage() {
 
             // Buscar evento
             const eventData = await eventsAPI.getEventById(eventId!);
-            
+
             if (!eventData.isPaid) {
                 toast.error('Este evento é gratuito');
                 navigate(`/eventos/${eventId}`);
@@ -67,16 +67,105 @@ export default function CheckoutPage() {
 
             setEvent(eventData);
 
-            // Criar pedido automaticamente
-            const orderData = await ticketOrdersAPI.createOrder({
-                eventId: eventId!,
-            });
+            // Verificar se já existe um pedido pendente (ignorar cancelados)
+            try {
+                const existingOrders = await ticketOrdersAPI.getMyOrders();
+                const pendingOrder = existingOrders.find(order =>
+                    order.eventId === eventId &&
+                    (order.orderStatus === 'PENDING_PAYMENT' || order.orderStatus === 'AWAITING_VALIDATION')
+                );
 
-            setOrder(orderData);
-            toast.success('Pedido criado! Complete o pagamento abaixo');
+                if (pendingOrder) {
+                    // Usar pedido existente
+                    setOrder(pendingOrder);
+
+                    if (pendingOrder.orderStatus === 'AWAITING_VALIDATION') {
+                        toast.info('Você já enviou um comprovante para este evento. Aguardando validação.');
+                    } else {
+                        toast.info('Pedido existente encontrado. Complete o pagamento abaixo.');
+                    }
+                    return;
+                }
+
+                // Verificar se há pedido aprovado (não permitir duplicar)
+                const approvedOrder = existingOrders.find(order =>
+                    order.eventId === eventId &&
+                    order.orderStatus === 'APPROVED'
+                );
+
+                if (approvedOrder) {
+                    toast.error('Você já possui um ingresso aprovado para este evento!');
+                    navigate('/meus-ingressos');
+                    return;
+                }
+            } catch (error) {
+                console.error('Error checking existing orders:', error);
+            }
+
+            // Criar novo pedido apenas se não houver pendente
+            try {
+                const orderData = await ticketOrdersAPI.createOrder({
+                    eventId: eventId!,
+                });
+
+                setOrder(orderData);
+                toast.success('Pedido criado! Complete o pagamento abaixo');
+            } catch (createError) {
+                const apiError = createError as ApiError;
+
+                // Se já existe ordem, buscar ela
+                if (apiError.message?.toLowerCase().includes('já') ||
+                    apiError.message?.toLowerCase().includes('already') ||
+                    apiError.status === 409) {
+
+                    const existingOrders = await ticketOrdersAPI.getMyOrders();
+
+                    // Procurar apenas por pedidos ativos (não cancelados/rejeitados)
+                    const activeOrder = existingOrders.find(order =>
+                        order.eventId === eventId &&
+                        (order.orderStatus === 'PENDING_PAYMENT' ||
+                         order.orderStatus === 'AWAITING_VALIDATION' ||
+                         order.orderStatus === 'APPROVED')
+                    );
+
+                    if (activeOrder) {
+                        if (activeOrder.orderStatus === 'APPROVED') {
+                            toast.error('Você já possui um ingresso aprovado para este evento!');
+                            navigate('/meus-ingressos');
+                            return;
+                        } else {
+                            setOrder(activeOrder);
+                            toast.info('Continuando com seu pedido existente.');
+                            return;
+                        }
+                    }
+
+                    // Se não encontrou pedido ativo, verificar se há apenas cancelados/rejeitados
+                    const cancelledOrRejectedOrder = existingOrders.find(order =>
+                        order.eventId === eventId &&
+                        (order.orderStatus === 'CANCELLED' || order.orderStatus === 'REJECTED')
+                    );
+
+                    if (cancelledOrRejectedOrder) {
+                        console.error('Backend bloqueando criação de pedido devido a ordem cancelada/rejeitada:', cancelledOrRejectedOrder);
+                        toast.error(
+                            'Erro no backend: Não é possível criar novo pedido pois existe um pedido cancelado/rejeitado. ' +
+                            'Isso é um problema do servidor que precisa ser corrigido pelo desenvolvedor backend.',
+                            { autoClose: 10000 }
+                        );
+                        navigate('/meus-pedidos');
+                        return;
+                    }
+
+                    // Se não encontrou nenhum pedido, o erro pode ser outra coisa
+                    console.warn('Backend reportou pedido existente, mas não encontramos nenhum pedido. Erro inesperado.');
+                }
+
+                throw createError;
+            }
         } catch (error) {
             const apiError = error as ApiError;
-            
+
             // Mensagens de erro mais específicas
             if (apiError.status === 500) {
                 toast.error('Erro no servidor ao criar pedido. Verifique os logs do backend Spring Boot.');
@@ -91,7 +180,7 @@ export default function CheckoutPage() {
             } else {
                 toast.error(apiError.message || 'Erro ao carregar checkout');
             }
-            
+
             navigate('/eventos');
         } finally {
             setIsLoading(false);
