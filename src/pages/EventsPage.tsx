@@ -1,24 +1,30 @@
 import { Search, TrendingUp, Zap, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import { Input } from "@/components/ui/input";
 import EventCard from "@/components/shared/all/Eventcard";
 import EventsLayout from "@/components/layouts/EventsLayouts";
-import { eventsAPI } from "@/lib/api";
+import { eventsAPI, participantsAPI, ticketsAPI } from "@/lib/api";
 import type { Event, EventType } from "@/types/event";
 
 export default function EventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+    const [participantCounts, setParticipantCounts] = useState<Map<string, number>>(new Map());
+    const [isLoadingParticipants, setIsLoadingParticipants] = useState(true);
 
     useEffect(() => {
         const fetchEvents = async () => {
             try {
                 setIsLoading(true);
+                setIsLoadingParticipants(true);
                 const data = await eventsAPI.getAllEvents();
                 setEvents(data);
+
+                // Fetch participant counts for all events
+                await fetchParticipantCounts(data);
             } catch (error) {
                 console.error('Error fetching events:', error);
                 toast.error('Erro ao carregar eventos. Tente novamente.');
@@ -30,12 +36,82 @@ export default function EventsPage() {
         fetchEvents();
     }, []);
 
-    // Filter events by search query
-    const filteredEvents = events.filter(event => 
-        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (event.location && event.location.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    const fetchParticipantCounts = async (eventList: Event[]) => {
+        try {
+            const counts = new Map<string, number>();
+
+            // Fetch participant counts for each event in parallel
+            await Promise.all(
+                eventList.map(async (event) => {
+                    try {
+                        let totalCount = 0;
+
+                        // For free events: count event-participants
+                        if (!event.isPaid) {
+                            const participants = await participantsAPI.getEventParticipants(event.id);
+                            totalCount = participants.length;
+                        } else {
+                            // For paid events: count tickets (approved orders)
+                            try {
+                                const tickets = await ticketsAPI.getEventTickets(event.id);
+                                // Count tickets that are VALID or USED (not CANCELLED)
+                                totalCount = tickets.filter(t => t.ticketStatus !== 'CANCELLED').length;
+                            } catch (error) {
+                                // If tickets API fails, try to count from event-participants as fallback
+                                const participants = await participantsAPI.getEventParticipants(event.id);
+                                totalCount = participants.length;
+                            }
+                        }
+
+                        counts.set(event.id, totalCount);
+                    } catch (error) {
+                        console.error(`Error fetching participants for event ${event.id}:`, error);
+                        // If error fetching participants, set count to 0
+                        counts.set(event.id, 0);
+                    }
+                })
+            );
+
+            setParticipantCounts(counts);
+        } catch (error) {
+            console.error('Error fetching participant counts:', error);
+        } finally {
+            setIsLoadingParticipants(false);
+        }
+    };
+
+    // Filter events by search query and exclude events that have ended
+    const filteredEvents = events.filter(event => {
+        // Get current date/time in Brazil timezone (UTC-3)
+        const now = new Date();
+        const brasiliaOffset = -3 * 60; // Brazil is UTC-3 (in minutes)
+        const localOffset = now.getTimezoneOffset(); // Current timezone offset
+        const offsetDiff = localOffset - brasiliaOffset;
+        const nowBrasilia = new Date(now.getTime() + offsetDiff * 60 * 1000);
+
+        // Parse event end date
+        // Backend sends in format YYYY-MM-DDTHH:mm:ss (without timezone)
+        // We need to treat it as Brasilia time
+        let eventEndDate: Date;
+        if (event.endDateTime.includes('Z') || event.endDateTime.includes('+') || event.endDateTime.includes('-')) {
+            // Already has timezone info
+            eventEndDate = new Date(event.endDateTime);
+        } else {
+            // No timezone info - treat as Brasilia time
+            // Parse as if it's already in Brasilia timezone
+            eventEndDate = new Date(event.endDateTime);
+        }
+
+        // Event is considered ended if endDateTime has passed
+        const isNotEnded = eventEndDate > nowBrasilia;
+
+        const matchesSearch =
+            event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (event.location && event.location.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        return isNotEnded && matchesSearch;
+    });
 
     // Helper function to map EventType to category
     const mapEventTypeToCategory = (eventType: EventType): "workshop" | "palestra" | "minicurso" | "festa" => {
@@ -58,27 +134,38 @@ export default function EventsPage() {
     };
 
     // Convert Event to EventCard props
-    const convertToEventCard = (event: Event) => ({
-        id: event.id,
-        title: event.title,
-        date: formatDate(event.startDateTime),
-        time: formatTime(event.startDateTime, event.endDateTime),
-        location: event.remote ? 'Online' : (event.location || 'Local não informado'),
-        image: (event.imgUrl && event.imgUrl.trim() !== '') ? event.imgUrl : '/logo.png',
-        category: mapEventTypeToCategory(event.eventType),
-        price: event.isPaid ? event.price || 0 : null,
-        participants: 0, // TODO: Implementar contagem de participantes
-    });
+    const convertToEventCard = (event: Event) => {
+        const participantCount = participantCounts.get(event.id) || 0;
 
-    // Filter events by type
-    const getEventsByType = (type: EventType) => 
-        filteredEvents.filter(event => event.eventType === type).map(convertToEventCard);
+        return {
+            id: event.id,
+            title: event.title,
+            date: formatDate(event.startDateTime),
+            time: formatTime(event.startDateTime, event.endDateTime),
+            location: event.remote ? 'Online' : (event.location || 'Local não informado'),
+            image: (event.imgUrl && event.imgUrl.trim() !== '') ? event.imgUrl : '/logo.png',
+            category: mapEventTypeToCategory(event.eventType),
+            price: event.isPaid ? event.price || 0 : null,
+            participants: participantCount,
+        };
+    };
 
-    const trendingEvents = filteredEvents.slice(0, 3).map(convertToEventCard);
-    const workshopEvents = getEventsByType('WORKSHOP');
-    const palestraEvents = getEventsByType('PALESTRA');
-    const minicursoEvents = getEventsByType('MINICURSO');
-    const festaEvents = getEventsByType('FESTA');
+    // Use useMemo to only recalculate when participantCounts or filteredEvents change
+    const eventCards = useMemo(() => {
+        return {
+            trending: filteredEvents.slice(0, 3).map(convertToEventCard),
+            workshops: filteredEvents.filter(event => event.eventType === 'WORKSHOP').map(convertToEventCard),
+            palestras: filteredEvents.filter(event => event.eventType === 'PALESTRA').map(convertToEventCard),
+            minicursos: filteredEvents.filter(event => event.eventType === 'MINICURSO').map(convertToEventCard),
+            festas: filteredEvents.filter(event => event.eventType === 'FESTA').map(convertToEventCard),
+        };
+    }, [filteredEvents, participantCounts]);
+
+    const trendingEvents = eventCards.trending;
+    const workshopEvents = eventCards.workshops;
+    const palestraEvents = eventCards.palestras;
+    const minicursoEvents = eventCards.minicursos;
+    const festaEvents = eventCards.festas;
 
     return (
         <EventsLayout>
@@ -116,7 +203,7 @@ export default function EventsPage() {
                 </motion.div>
 
                 {/* Loading State */}
-                {isLoading ? (
+                {(isLoading || isLoadingParticipants) ? (
                     <div className="flex items-center justify-center py-20">
                         <div className="text-center">
                             <Loader2 className="h-12 w-12 text-[#ff914d] animate-spin mx-auto mb-4" />
