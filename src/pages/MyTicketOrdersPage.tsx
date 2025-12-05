@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
-import { Receipt, Loader2, Filter, AlertCircle } from "lucide-react";
+import { Receipt, Loader2, Filter, AlertCircle, Upload, X } from "lucide-react";
 import EventsLayout from "@/components/layouts/EventsLayouts";
 import OrderCard from "@/components/ticket/OrderCard";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { ticketOrdersAPI } from "@/lib/api";
 import type { TicketOrder, OrderStatus } from "@/types/ticket";
@@ -26,6 +28,16 @@ export default function MyTicketOrdersPage() {
     const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Upload proof modal state
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+    const [proofUrl, setProofUrl] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
+
+    // View proof modal state
+    const [showViewProofModal, setShowViewProofModal] = useState(false);
+    const [viewingProofUrl, setViewingProofUrl] = useState<string | null>(null);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -68,11 +80,74 @@ export default function MyTicketOrdersPage() {
         }
 
         // Ordenar por data (mais recente primeiro)
-        filtered.sort((a, b) => 
+        filtered.sort((a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 
         setFilteredOrders(filtered);
+    };
+
+    const handleUploadProof = (orderId: string) => {
+        setSelectedOrderId(orderId);
+        setProofUrl('');
+        setShowUploadModal(true);
+    };
+
+    const handleSubmitProof = async () => {
+        if (!selectedOrderId || !proofUrl.trim()) {
+            toast.error('Por favor, insira o link do comprovante');
+            return;
+        }
+
+        // Validate URL format
+        try {
+            new URL(proofUrl);
+        } catch {
+            toast.error('URL inválida. Por favor, insira um link válido');
+            return;
+        }
+
+        try {
+            setIsUploading(true);
+            await ticketOrdersAPI.uploadProof(selectedOrderId, {
+                paymentProofUrl: proofUrl.trim()
+            });
+
+            toast.success('Comprovante enviado com sucesso!');
+            setShowUploadModal(false);
+            setProofUrl('');
+            setSelectedOrderId(null);
+
+            // Refresh orders list
+            await loadOrders();
+        } catch (error) {
+            const apiError = error as ApiError;
+            toast.error(apiError.message || 'Erro ao enviar comprovante');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleViewProof = (proofUrl: string) => {
+        setViewingProofUrl(proofUrl);
+        setShowViewProofModal(true);
+    };
+
+    const handleCancelOrder = async (orderId: string) => {
+        if (!confirm('Tem certeza que deseja cancelar este pedido?')) {
+            return;
+        }
+
+        try {
+            await ticketOrdersAPI.cancelOrder(orderId);
+            toast.success('Pedido cancelado com sucesso!');
+
+            // Refresh orders list
+            await loadOrders();
+        } catch (error) {
+            const apiError = error as ApiError;
+            toast.error(apiError.message || 'Erro ao cancelar pedido');
+        }
     };
 
     if (isLoading) {
@@ -196,8 +271,11 @@ export default function MyTicketOrdersPage() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.1 * index }}
                             >
-                                <OrderCard 
+                                <OrderCard
                                     order={order}
+                                    onUploadProof={handleUploadProof}
+                                    onViewProof={handleViewProof}
+                                    onCancel={handleCancelOrder}
                                 />
                             </motion.div>
                         ))}
@@ -220,6 +298,134 @@ export default function MyTicketOrdersPage() {
                             <li>A validação é feita pelo organizador do evento</li>
                         </ul>
                     </motion.div>
+                )}
+
+                {/* Upload Proof Modal */}
+                {showUploadModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl"
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-xl font-bold text-[#191919]">
+                                    Enviar Comprovante
+                                </h3>
+                                <button
+                                    onClick={() => {
+                                        setShowUploadModal(false);
+                                        setProofUrl('');
+                                        setSelectedOrderId(null);
+                                    }}
+                                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <Label htmlFor="proofUrl">Link do Comprovante *</Label>
+                                    <Input
+                                        id="proofUrl"
+                                        type="url"
+                                        value={proofUrl}
+                                        onChange={(e) => setProofUrl(e.target.value)}
+                                        placeholder="https://exemplo.com/comprovante.jpg"
+                                        className="mt-1"
+                                    />
+                                    <p className="text-xs text-[#191919]/60 mt-1">
+                                        Cole o link da imagem do comprovante de pagamento
+                                    </p>
+                                </div>
+
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                    <p className="text-sm text-blue-800">
+                                        <strong>Dica:</strong> Você pode fazer upload da imagem em serviços como Imgur, Google Drive (link público) ou similares.
+                                    </p>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <Button
+                                        onClick={() => {
+                                            setShowUploadModal(false);
+                                            setProofUrl('');
+                                            setSelectedOrderId(null);
+                                        }}
+                                        variant="outline"
+                                        className="flex-1"
+                                        disabled={isUploading}
+                                    >
+                                        Cancelar
+                                    </Button>
+                                    <Button
+                                        onClick={handleSubmitProof}
+                                        className="flex-1 bg-[#ff914d] hover:bg-[#ff7b33]"
+                                        disabled={isUploading || !proofUrl.trim()}
+                                    >
+                                        {isUploading ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Enviando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload className="mr-2 h-4 w-4" />
+                                                Enviar
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+                {/* View Proof Modal */}
+                {showViewProofModal && viewingProofUrl && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-xl"
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-xl font-bold text-[#191919]">
+                                    Comprovante de Pagamento
+                                </h3>
+                                <button
+                                    onClick={() => {
+                                        setShowViewProofModal(false);
+                                        setViewingProofUrl(null);
+                                    }}
+                                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <img
+                                    src={viewingProofUrl}
+                                    alt="Comprovante de pagamento"
+                                    className="w-full rounded-lg border border-gray-200"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        e.currentTarget.parentElement!.innerHTML += '<p class="text-center text-red-600 py-8">Não foi possível carregar a imagem</p>';
+                                    }}
+                                />
+
+                                <Button
+                                    onClick={() => window.open(viewingProofUrl, '_blank')}
+                                    variant="outline"
+                                    className="w-full"
+                                >
+                                    Abrir em Nova Aba
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </div>
         </EventsLayout>

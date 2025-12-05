@@ -1,5 +1,6 @@
-import { Receipt, Clock, CheckCircle, XCircle, Ban, Upload, Trash2, Eye } from "lucide-react";
+import { Receipt, Clock, CheckCircle, XCircle, Ban, Upload, Trash2, Eye, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import type { TicketOrder, OrderStatus } from "@/types/ticket";
 
 interface OrderCardProps {
@@ -48,10 +49,13 @@ const statusConfig: Record<OrderStatus, { label: string; icon: React.ElementType
 };
 
 export default function OrderCard({ order, onUploadProof, onViewProof, onCancel }: OrderCardProps) {
+    const navigate = useNavigate();
     const config = statusConfig[order.orderStatus];
     const StatusIcon = config.icon;
 
-    const canUploadProof = order.orderStatus === 'PENDING_PAYMENT' || order.orderStatus === 'REJECTED';
+    const isPending = order.orderStatus === 'PENDING_PAYMENT';
+    const isAwaitingValidation = order.orderStatus === 'AWAITING_VALIDATION';
+    const canUploadProof = order.orderStatus === 'REJECTED';
     const canCancel = order.orderStatus === 'PENDING_PAYMENT' || order.orderStatus === 'AWAITING_VALIDATION';
     const hasProof = !!order.paymentProofUrl;
 
@@ -111,8 +115,17 @@ export default function OrderCard({ order, onUploadProof, onViewProof, onCancel 
                 </div>
             )}
 
-            {/* Comprovante */}
-            {hasProof && onViewProof && (
+            {/* Informação para pedidos aguardando validação */}
+            {isAwaitingValidation && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-blue-800">
+                        Seu comprovante foi enviado e está aguardando validação do organizador.
+                    </p>
+                </div>
+            )}
+
+            {/* Comprovante enviado */}
+            {hasProof && isAwaitingValidation && onViewProof && (
                 <Button
                     onClick={() => onViewProof(order.paymentProofUrl!)}
                     variant="outline"
@@ -126,16 +139,29 @@ export default function OrderCard({ order, onUploadProof, onViewProof, onCancel 
 
             {/* Ações */}
             <div className="flex gap-3">
+                {/* Pedido pendente - ir para checkout */}
+                {isPending && (
+                    <Button
+                        onClick={() => navigate(`/checkout/${order.eventId}`)}
+                        className="flex-1 bg-[#ff914d] hover:bg-[#ff7b33]"
+                    >
+                        <ArrowRight className="mr-2 h-4 w-4" />
+                        Ir para Pagamento
+                    </Button>
+                )}
+
+                {/* Pedido rejeitado - reenviar comprovante */}
                 {canUploadProof && onUploadProof && (
                     <Button
                         onClick={() => onUploadProof(order.orderId)}
                         className="flex-1 bg-[#ff914d] hover:bg-[#ff7b33]"
                     >
                         <Upload className="mr-2 h-4 w-4" />
-                        {hasProof ? 'Reenviar Comprovante' : 'Enviar Comprovante'}
+                        Reenviar Comprovante
                     </Button>
                 )}
 
+                {/* Cancelar pedido */}
                 {canCancel && onCancel && (
                     <Button
                         onClick={() => onCancel(order.orderId)}
@@ -147,9 +173,10 @@ export default function OrderCard({ order, onUploadProof, onViewProof, onCancel 
                     </Button>
                 )}
 
+                {/* Pedido aprovado - ver ingresso */}
                 {order.orderStatus === 'APPROVED' && (
                     <Button
-                        onClick={() => window.location.href = '/meus-ingressos'}
+                        onClick={() => navigate('/meus-ingressos')}
                         className="flex-1 bg-green-600 hover:bg-green-700"
                     >
                         <CheckCircle className="mr-2 h-4 w-4" />
