@@ -1,4 +1,4 @@
-import { Calendar, Plus, List, Settings, LogOut, TrendingUp, Ticket, Receipt, Bell, Menu, X } from "lucide-react";
+import { Calendar, Plus, List, Settings, LogOut, TrendingUp, Ticket, Receipt, Bell, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
