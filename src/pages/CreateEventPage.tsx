@@ -11,7 +11,8 @@ import {
     X,
     Save,
     FileText,
-    Tag
+    Tag,
+    Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,14 +34,18 @@ export default function CreateEventPage() {
     const [isRemote, setIsRemote] = useState(false);
     const [generateCertificate, setGenerateCertificate] = useState(false);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [pixKeyError, setPixKeyError] = useState<string>("");
+    const [uploadedImageFile, setUploadedImageFile] = useState<File | null>(null);
+    const [isProcessingImage, setIsProcessingImage] = useState(false);
     
     // Form states
     const [formData, setFormData] = useState({
         title: "",
         description: "",
         category: "" as EventType | "",
-        date: "",
+        startDate: "",
         startTime: "",
+        endDate: "",
         endTime: "",
         location: "",
         eventUrl: "",
@@ -53,6 +58,11 @@ export default function CreateEventPage() {
 
     const handleInputChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+
+        // Validate PIX key when it changes
+        if (field === "pixKey") {
+            validatePixKey(value, formData.pixKeyType);
+        }
     };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,7 +70,153 @@ export default function CreateEventPage() {
         setFormData(prev => ({ ...prev, imgUrl: url }));
         if (url) {
             setImagePreview(url);
+            setUploadedImageFile(null);
         }
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+        if (!validTypes.includes(file.type)) {
+            toast.error('Formato inválido. Use PNG ou JPEG.');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        const maxSize = 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+            toast.error('Imagem muito grande. Tamanho máximo: 5MB.');
+            return;
+        }
+
+        setIsProcessingImage(true);
+
+        // Compress and resize image
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    // Create canvas for resizing
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    if (!ctx) {
+                        toast.error('Erro ao processar imagem.');
+                        setIsProcessingImage(false);
+                        return;
+                    }
+
+                    // Max dimensions for event images (reduced for better compression)
+                    const MAX_WIDTH = 800;
+                    const MAX_HEIGHT = 600;
+
+                    let width = img.width;
+                    let height = img.height;
+
+                    // Calculate new dimensions maintaining aspect ratio
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height = Math.round((height * MAX_WIDTH) / width);
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width = Math.round((width * MAX_HEIGHT) / height);
+                            height = MAX_HEIGHT;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    // Draw resized image
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Convert to base64 with higher compression (0.5 quality)
+                    let compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
+
+                    // Check final size and compress more if needed
+                    let sizeInKB = Math.round((compressedBase64.length * 3) / 4 / 1024);
+
+                    // If still too large, compress even more
+                    if (sizeInKB > 200) {
+                        compressedBase64 = canvas.toDataURL('image/jpeg', 0.3);
+                        sizeInKB = Math.round((compressedBase64.length * 3) / 4 / 1024);
+                    }
+
+                    console.log(`Imagem comprimida: ${sizeInKB}KB, ${compressedBase64.length} caracteres`);
+
+                    if (sizeInKB > 300) {
+                        toast.warning(`Imagem processada: ${sizeInKB}KB. Pode demorar um pouco para salvar.`);
+                    }
+
+                    setImagePreview(compressedBase64);
+                    setUploadedImageFile(file);
+                    setFormData(prev => ({ ...prev, imgUrl: '' }));
+                    toast.success('Imagem processada com sucesso!');
+                } catch (error) {
+                    console.error('Error processing image:', error);
+                    toast.error('Erro ao processar imagem.');
+                } finally {
+                    setIsProcessingImage(false);
+                }
+            };
+            img.onerror = () => {
+                toast.error('Erro ao carregar imagem.');
+                setIsProcessingImage(false);
+            };
+            img.src = e.target?.result as string;
+        };
+        reader.onerror = () => {
+            toast.error('Erro ao ler arquivo.');
+            setIsProcessingImage(false);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleRemoveImage = () => {
+        setImagePreview(null);
+        setUploadedImageFile(null);
+        setFormData(prev => ({ ...prev, imgUrl: '' }));
+    };
+
+    const handlePixKeyTypeChange = (value: string) => {
+        handleInputChange("pixKeyType", value);
+        // Re-validate current PIX key with new type
+        if (formData.pixKey) {
+            validatePixKey(formData.pixKey, value as typeof formData.pixKeyType);
+        }
+    };
+
+    const validatePixKey = (key: string, type: typeof formData.pixKeyType): boolean => {
+        if (!key.trim()) {
+            setPixKeyError("");
+            return true;
+        }
+
+        const patterns = {
+            CPF: /^\d{3}\.\d{3}\.\d{3}-\d{2}$|^\d{11}$/,
+            CNPJ: /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$|^\d{14}$/,
+            EMAIL: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+            PHONE: /^\+?55\s?\(?\d{2}\)?\s?\d{4,5}-?\d{4}$|^\(?\d{2}\)?\s?\d{4,5}-?\d{4}$|^\d{10,11}$/,
+            RANDOM: /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
+        };
+
+        const errorMessages = {
+            CPF: "CPF inválido. Use o formato: 123.456.789-00 ou 12345678900",
+            CNPJ: "CNPJ inválido. Use o formato: 12.345.678/0001-00 ou 12345678000100",
+            EMAIL: "E-mail inválido. Use o formato: exemplo@email.com",
+            PHONE: "Telefone inválido. Use o formato: (11) 98765-4321 ou 11987654321",
+            RANDOM: "Chave aleatória inválida. Use o formato UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        };
+
+        const isValid = patterns[type].test(key);
+        setPixKeyError(isValid ? "" : errorMessages[type]);
+        return isValid;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -88,8 +244,8 @@ export default function CreateEventPage() {
             return;
         }
 
-        if (!formData.date || !formData.startTime || !formData.endTime) {
-            toast.error('Preencha data e horários do evento');
+        if (!formData.startDate || !formData.startTime || !formData.endDate || !formData.endTime) {
+            toast.error('Preencha as datas e horários de início e término do evento');
             return;
         }
 
@@ -118,21 +274,31 @@ export default function CreateEventPage() {
             return;
         }
 
+        if (!isFree && formData.pixKey.trim() && !validatePixKey(formData.pixKey, formData.pixKeyType)) {
+            toast.error('Chave PIX inválida. Verifique o formato da chave.');
+            return;
+        }
+
         setIsLoading(true);
 
         try {
             // Combinar data e horários em formato ISO 8601
-            const startDateTime = `${formData.date}T${formData.startTime}:00`;
-            const endDateTime = `${formData.date}T${formData.endTime}:00`;
+            const startDateTime = `${formData.startDate}T${formData.startTime}:00`;
+            const endDateTime = `${formData.endDate}T${formData.endTime}:00`;
 
-            // Validar que horário de término é após o início
+            // Validar que data/horário de término é após o início
             if (new Date(endDateTime) <= new Date(startDateTime)) {
-                toast.error('O horário de término deve ser após o horário de início');
+                toast.error('A data e horário de término devem ser após a data e horário de início');
                 setIsLoading(false);
                 return;
             }
 
             // Preparar dados para envio
+            // Use base64 if file was uploaded, otherwise use URL
+            const imageUrl = uploadedImageFile
+                ? (imagePreview || undefined)
+                : (formData.imgUrl?.trim() || undefined);
+
             const eventData = {
                 eventType: formData.category as EventType,
                 title: formData.title.trim(),
@@ -141,7 +307,7 @@ export default function CreateEventPage() {
                 endDateTime,
                 location: isRemote ? undefined : formData.location.trim(),
                 eventUrl: isRemote ? formData.eventUrl.trim() : undefined,
-                imgUrl: formData.imgUrl?.trim() || undefined,
+                imgUrl: imageUrl,
                 remote: isRemote,
                 maxAttendees: parseInt(formData.maxParticipants),
                 isPaid: !isFree,
@@ -152,18 +318,48 @@ export default function CreateEventPage() {
                 generateCertificate: generateCertificate,
             };
 
+            console.log('=== CRIANDO EVENTO ===');
+            console.log('eventType:', eventData.eventType);
+            console.log('title:', eventData.title);
+            console.log('description:', eventData.description);
+            console.log('startDateTime:', eventData.startDateTime);
+            console.log('endDateTime:', eventData.endDateTime);
+            console.log('location:', eventData.location);
+            console.log('eventUrl:', eventData.eventUrl);
+            console.log('remote:', eventData.remote);
+            console.log('maxAttendees:', eventData.maxAttendees);
+            console.log('isPaid:', eventData.isPaid);
+            console.log('price:', eventData.price);
+            console.log('pixKey:', eventData.pixKey);
+            console.log('pixKeyType:', eventData.pixKeyType);
+            console.log('organizerId:', eventData.organizerId);
+            console.log('generateCertificate:', eventData.generateCertificate);
+            console.log('imgUrl:', eventData.imgUrl ? `[BASE64 IMAGE - ${eventData.imgUrl.length} chars]` : 'undefined');
+            console.log('======================');
+
             const createdEvent = await eventsAPI.createEvent(eventData);
-            
-            toast.success('Evento criado com sucesso! 🎉');
+
+            toast.success('Evento criado com sucesso!');
             navigate(`/eventos/${createdEvent.id}`);
         } catch (error) {
+            console.error('Erro ao criar evento:', error);
             const apiError = error as ApiError;
-            
+
             if (apiError.status === 400) {
                 toast.error(apiError.message || 'Dados inválidos. Verifique os campos preenchidos.');
             } else if (apiError.status === 401) {
                 toast.error('Sessão expirada. Faça login novamente.');
                 navigate('/login');
+            } else if (apiError.status === 500) {
+                console.error('Erro 500 detalhes:', {
+                    message: apiError.message,
+                    status: apiError.status,
+                    error: apiError
+                });
+                toast.error(
+                    `Erro no servidor ao criar evento. ${apiError.message || 'Verifique os logs do backend.'}`,
+                    { autoClose: 7000 }
+                );
             } else {
                 toast.error(apiError.message || 'Erro ao criar evento. Tente novamente.');
             }
@@ -270,50 +466,73 @@ export default function CreateEventPage() {
                             Data e Horário
                         </h2>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {/* Data */}
-                            <div className="space-y-2">
-                                <Label htmlFor="date" className="text-[#191919] font-semibold">
-                                    Data *
-                                </Label>
-                                <Input
-                                    id="date"
-                                    type="date"
-                                    value={formData.date}
-                                    onChange={(e) => handleInputChange("date", e.target.value)}
-                                    className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
-                                    required
-                                />
+                        <div className="space-y-6">
+                            {/* Início do Evento */}
+                            <div>
+                                <h3 className="text-lg font-semibold text-[#191919] mb-4">Início do Evento</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="startDate" className="text-[#191919] font-semibold">
+                                            Data de Início *
+                                        </Label>
+                                        <Input
+                                            id="startDate"
+                                            type="date"
+                                            value={formData.startDate}
+                                            onChange={(e) => handleInputChange("startDate", e.target.value)}
+                                            className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="startTime" className="text-[#191919] font-semibold">
+                                            Hora de Início *
+                                        </Label>
+                                        <Input
+                                            id="startTime"
+                                            type="time"
+                                            value={formData.startTime}
+                                            onChange={(e) => handleInputChange("startTime", e.target.value)}
+                                            className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                            required
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Hora Início */}
-                            <div className="space-y-2">
-                                <Label htmlFor="startTime" className="text-[#191919] font-semibold">
-                                    Hora de Início *
-                                </Label>
-                                <Input
-                                    id="startTime"
-                                    type="time"
-                                    value={formData.startTime}
-                                    onChange={(e) => handleInputChange("startTime", e.target.value)}
-                                    className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
-                                    required
-                                />
-                            </div>
+                            {/* Término do Evento */}
+                            <div>
+                                <h3 className="text-lg font-semibold text-[#191919] mb-4">Término do Evento</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="endDate" className="text-[#191919] font-semibold">
+                                            Data de Término *
+                                        </Label>
+                                        <Input
+                                            id="endDate"
+                                            type="date"
+                                            value={formData.endDate}
+                                            onChange={(e) => handleInputChange("endDate", e.target.value)}
+                                            className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                            required
+                                        />
+                                    </div>
 
-                            {/* Hora Fim */}
-                            <div className="space-y-2">
-                                <Label htmlFor="endTime" className="text-[#191919] font-semibold">
-                                    Hora de Término *
-                                </Label>
-                                <Input
-                                    id="endTime"
-                                    type="time"
-                                    value={formData.endTime}
-                                    onChange={(e) => handleInputChange("endTime", e.target.value)}
-                                    className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
-                                    required
-                                />
+                                    <div className="space-y-2">
+                                        <Label htmlFor="endTime" className="text-[#191919] font-semibold">
+                                            Hora de Término *
+                                        </Label>
+                                        <Input
+                                            id="endTime"
+                                            type="time"
+                                            value={formData.endTime}
+                                            onChange={(e) => handleInputChange("endTime", e.target.value)}
+                                            className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                            required
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -472,7 +691,7 @@ export default function CreateEventPage() {
                                         </Label>
                                         <Select
                                             value={formData.pixKeyType}
-                                            onValueChange={(value) => handleInputChange("pixKeyType", value)}
+                                            onValueChange={handlePixKeyTypeChange}
                                         >
                                             <SelectTrigger className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]">
                                                 <SelectValue placeholder="Selecione o tipo" />
@@ -494,15 +713,29 @@ export default function CreateEventPage() {
                                         <Input
                                             id="pixKey"
                                             type="text"
-                                            placeholder="Digite sua chave PIX"
+                                            placeholder={
+                                                formData.pixKeyType === "CPF" ? "123.456.789-00 ou 12345678900" :
+                                                formData.pixKeyType === "CNPJ" ? "12.345.678/0001-00 ou 12345678000100" :
+                                                formData.pixKeyType === "EMAIL" ? "exemplo@email.com" :
+                                                formData.pixKeyType === "PHONE" ? "(11) 98765-4321 ou 11987654321" :
+                                                "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                            }
                                             value={formData.pixKey}
                                             onChange={(e) => handleInputChange("pixKey", e.target.value)}
-                                            className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                            className={`h-12 rounded-xl focus:ring-2 focus:ring-[#ff914d] ${
+                                                pixKeyError ? "border-red-500 focus:border-red-500" : "border-gray-300"
+                                            }`}
                                             required={!isFree}
                                         />
-                                        <p className="text-sm text-gray-500">
-                                            Os participantes usarão esta chave para fazer o pagamento
-                                        </p>
+                                        {pixKeyError ? (
+                                            <p className="text-sm text-red-600 flex items-center gap-1">
+                                                {pixKeyError}
+                                            </p>
+                                        ) : (
+                                            <p className="text-sm text-gray-500">
+                                                Os participantes usarão esta chave para fazer o pagamento
+                                            </p>
+                                        )}
                                     </div>
                                 </>
                             )}
@@ -516,7 +749,53 @@ export default function CreateEventPage() {
                             Imagem do Evento (Opcional)
                         </h2>
 
-                        <div className="space-y-4">
+                        <div className="space-y-6">
+                            {/* File Upload */}
+                            <div className="space-y-2">
+                                <Label htmlFor="imageFile" className="text-[#191919] font-semibold">
+                                    Fazer Upload de Imagem
+                                </Label>
+                                <div className="flex items-center gap-4">
+                                    <label
+                                        htmlFor="imageFile"
+                                        className="flex items-center justify-center gap-2 h-12 px-6 rounded-xl border-2 border-dashed border-gray-300 hover:border-[#ff914d] hover:bg-[#ff914d]/5 cursor-pointer transition-all"
+                                    >
+                                        <Upload className="h-5 w-5 text-[#ff914d]" />
+                                        <span className="text-sm font-semibold text-[#191919]">
+                                            Escolher arquivo
+                                        </span>
+                                    </label>
+                                    <input
+                                        id="imageFile"
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/jpg"
+                                        onChange={handleFileUpload}
+                                        className="hidden"
+                                        disabled={isProcessingImage}
+                                    />
+                                    {isProcessingImage ? (
+                                        <span className="text-sm text-[#ff914d] flex items-center gap-2">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#ff914d]"></div>
+                                            Processando imagem...
+                                        </span>
+                                    ) : uploadedImageFile && (
+                                        <span className="text-sm text-[#191919]/70">
+                                            {uploadedImageFile.name}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-sm text-[#191919]/60">
+                                    PNG ou JPEG, máximo 5MB
+                                </p>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="flex items-center gap-4">
+                                <div className="flex-1 border-t border-gray-300"></div>
+                                <span className="text-sm text-[#191919]/60 font-semibold">OU</span>
+                                <div className="flex-1 border-t border-gray-300"></div>
+                            </div>
+
                             {/* URL Input */}
                             <div className="space-y-2">
                                 <Label htmlFor="imgUrl" className="text-[#191919] font-semibold">
@@ -529,6 +808,7 @@ export default function CreateEventPage() {
                                     value={formData.imgUrl}
                                     onChange={handleImageChange}
                                     className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                    disabled={!!uploadedImageFile}
                                 />
                                 <p className="text-sm text-[#191919]/60">
                                     Cole o link de uma imagem para representar seu evento
@@ -546,10 +826,7 @@ export default function CreateEventPage() {
                                     />
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            setImagePreview(null);
-                                            setFormData(prev => ({ ...prev, imgUrl: '' }));
-                                        }}
+                                        onClick={handleRemoveImage}
                                         className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition-colors"
                                     >
                                         <X className="h-5 w-5" />
