@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import EventsLayout from "@/components/layouts/EventsLayouts";
-import { eventsAPI, participantsAPI, certificateAPI } from "@/lib/api";
+import { eventsAPI, participantsAPI, certificateAPI, ticketsAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Event } from "@/types/event";
 import type { ApiError } from "@/types/auth";
@@ -40,20 +40,49 @@ export default function EventDetailsPage() {
                 setEvent(eventData);
 
                 // Get participants count
-                const participants = await participantsAPI.getEventParticipants(id);
-                setParticipantsCount(participants.length);
+                let totalCount = 0;
 
-                // Check if user is registered and get participation data
-                if (isAuthenticated && user) {
-                    const registrationStatus = await participantsAPI.isRegistered(id, user.id);
-                    setIsRegistered(registrationStatus.isRegistered);
-                    
-                    // Get user's participation details (to check if attended)
-                    if (registrationStatus.isRegistered) {
-                        const userParticipationData = participants.find(p => p.participant.email === user.email);
-                        setUserParticipation(userParticipationData || null);
+                if (!eventData.isPaid) {
+                    // For free events: count event-participants
+                    const participants = await participantsAPI.getEventParticipants(id);
+                    totalCount = participants.length;
+
+                    // Check if user is registered and get participation data
+                    if (isAuthenticated && user) {
+                        const registrationStatus = await participantsAPI.isRegistered(id, user.id);
+                        setIsRegistered(registrationStatus.isRegistered);
+
+                        // Get user's participation details (to check if attended)
+                        if (registrationStatus.isRegistered) {
+                            const userParticipationData = participants.find(p => p.participant.email === user.email);
+                            setUserParticipation(userParticipationData || null);
+                        }
+                    }
+                } else {
+                    // For paid events: count tickets (approved orders)
+                    try {
+                        const tickets = await ticketsAPI.getEventTickets(id);
+                        // Count tickets that are VALID or USED (not CANCELLED)
+                        totalCount = tickets.filter(t => t.ticketStatus !== 'CANCELLED').length;
+
+                        // Check if user has a valid ticket for this event
+                        if (isAuthenticated && user) {
+                            const userTicket = tickets.find(t => t.userId === user.id && t.ticketStatus !== 'CANCELLED');
+                            setIsRegistered(!!userTicket);
+                        }
+                    } catch (error) {
+                        // If tickets API fails, try event-participants as fallback
+                        const participants = await participantsAPI.getEventParticipants(id);
+                        totalCount = participants.length;
+
+                        if (isAuthenticated && user) {
+                            const registrationStatus = await participantsAPI.isRegistered(id, user.id);
+                            setIsRegistered(registrationStatus.isRegistered);
+                        }
                     }
                 }
+
+                setParticipantsCount(totalCount);
             } catch (error) {
                 console.error('Error fetching event:', error);
                 toast.error('Erro ao carregar detalhes do evento');
@@ -400,7 +429,7 @@ export default function EventDetailsPage() {
                             </motion.section>
 
                             {/* Event URL for remote events */}
-                            {event.remote && event.eventUrl && (
+                            {event.remote && event.eventUrl && isRegistered && (
                                 <motion.section
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -424,6 +453,24 @@ export default function EventDetailsPage() {
                                     </div>
                                     <p className="text-sm text-green-700/70 mt-3">
                                         O link ficará disponível para participantes inscritos
+                                    </p>
+                                </motion.section>
+                            )}
+
+                            {/* Message for non-registered users on remote events */}
+                            {event.remote && event.eventUrl && !isRegistered && (
+                                <motion.section
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.4 }}
+                                    className="bg-gradient-to-br from-blue-50 to-blue-50/50 rounded-2xl p-8 shadow-lg border border-blue-200"
+                                >
+                                    <h2 className="text-xl font-bold text-[#191919] mb-4 flex items-center gap-2">
+                                        <Info className="h-6 w-6 text-blue-600" />
+                                        Evento Online
+                                    </h2>
+                                    <p className="text-[#191919]/70">
+                                        Este é um evento online. O link para acesso será disponibilizado após a sua inscrição.
                                     </p>
                                 </motion.section>
                             )}
