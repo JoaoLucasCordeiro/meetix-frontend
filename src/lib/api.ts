@@ -8,7 +8,7 @@ import type { Certificate } from '@/types/certificate';
 import type { Coupon, CreateCouponRequest, ApplyCouponRequest } from '@/types/coupon';
 import type { Notification } from '@/types/notification';
 
-const API_BASE_URL = 'http://localhost:8081';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081';
 
 // Helper function to handle fetch requests
 async function fetchAPI<T>(
@@ -156,6 +156,55 @@ export const authAPI = {
 
   isAuthenticated(): boolean {
     return !!this.getToken();
+  },
+};
+
+// User API methods
+export const userAPI = {
+  async getCurrentUser() {
+    return await fetchAPI('/api/users/me', {
+      method: 'GET',
+    });
+  },
+
+  async updateProfile(data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    instagram?: string;
+    university: string;
+    course: string;
+  }) {
+    const response = await fetchAPI<any>('/api/users/me/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+
+    // Update local storage with new user data
+    if (response && response.id) {
+      const user = {
+        id: response.id,
+        firstName: response.firstName,
+        lastName: response.lastName,
+        email: response.email,
+        instagram: response.instagram || '',
+        university: response.university,
+        course: response.course,
+      };
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+
+    return response;
+  },
+
+  async changePassword(data: {
+    currentPassword: string;
+    newPassword: string;
+  }) {
+    return await fetchAPI('/api/users/me/password', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   },
 };
 
