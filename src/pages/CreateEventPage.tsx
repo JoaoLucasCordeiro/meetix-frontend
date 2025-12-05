@@ -43,6 +43,7 @@ export default function CreateEventPage() {
         startTime: "",
         endTime: "",
         location: "",
+        eventUrl: "",
         maxParticipants: "",
         price: "",
         imgUrl: "",
@@ -92,8 +93,13 @@ export default function CreateEventPage() {
             return;
         }
 
-        if (!formData.location.trim()) {
-            toast.error('O local do evento é obrigatório');
+        if (!isRemote && !formData.location.trim()) {
+            toast.error('O local do evento é obrigatório para eventos presenciais');
+            return;
+        }
+
+        if (isRemote && !formData.eventUrl.trim()) {
+            toast.error('A URL do evento é obrigatória para eventos remotos');
             return;
         }
 
@@ -133,7 +139,8 @@ export default function CreateEventPage() {
                 description: formData.description.trim(),
                 startDateTime,
                 endDateTime,
-                location: formData.location.trim(),
+                location: isRemote ? undefined : formData.location.trim(),
+                eventUrl: isRemote ? formData.eventUrl.trim() : undefined,
                 imgUrl: formData.imgUrl?.trim() || undefined,
                 remote: isRemote,
                 maxAttendees: parseInt(formData.maxParticipants),
@@ -311,29 +318,82 @@ export default function CreateEventPage() {
                         </div>
                     </section>
 
+                    {/* Opções Adicionais (Movido para antes de Localização) */}
+                    <section className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+                        <h2 className="text-2xl font-bold text-[#191919] mb-6 flex items-center">
+                            <Tag className="h-6 w-6 mr-3 text-[#ff914d]" />
+                            Tipo de Evento
+                        </h2>
+
+                        <div className="space-y-4">
+                            {/* Evento Remoto */}
+                            <div className="flex items-center space-x-3">
+                                <Checkbox
+                                    id="isRemote"
+                                    checked={isRemote}
+                                    onCheckedChange={(checked) => setIsRemote(checked === true)}
+                                    className="border-gray-300 data-[state=checked]:bg-[#ff914d] data-[state=checked]:border-[#ff914d]"
+                                />
+                                <Label htmlFor="isRemote" className="text-[#191919] font-semibold cursor-pointer">
+                                    Evento Remoto (Online)
+                                </Label>
+                            </div>
+
+                            {/* Gerar Certificado */}
+                            <div className="flex items-center space-x-3">
+                                <Checkbox
+                                    id="generateCertificate"
+                                    checked={generateCertificate}
+                                    onCheckedChange={(checked) => setGenerateCertificate(checked === true)}
+                                    className="border-gray-300 data-[state=checked]:bg-[#ff914d] data-[state=checked]:border-[#ff914d]"
+                                />
+                                <Label htmlFor="generateCertificate" className="text-[#191919] font-semibold cursor-pointer">
+                                    Gerar Certificado para Participantes
+                                </Label>
+                            </div>
+                        </div>
+                    </section>
+
                     {/* Localização e Participantes */}
                     <section className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
                         <h2 className="text-2xl font-bold text-[#191919] mb-6 flex items-center">
                             <MapPin className="h-6 w-6 mr-3 text-[#ff914d]" />
-                            Localização e Capacidade
+                            {isRemote ? 'URL do Evento e Capacidade' : 'Localização e Capacidade'}
                         </h2>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Localização */}
-                            <div className="space-y-2">
-                                <Label htmlFor="location" className="text-[#191919] font-semibold">
-                                    Local do Evento *
-                                </Label>
-                                <Input
-                                    id="location"
-                                    type="text"
-                                    placeholder="Ex: Auditório Central - Bloco A"
-                                    value={formData.location}
-                                    onChange={(e) => handleInputChange("location", e.target.value)}
-                                    className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
-                                    required
-                                />
-                            </div>
+                            {/* Localização ou URL do Evento */}
+                            {isRemote ? (
+                                <div className="space-y-2">
+                                    <Label htmlFor="eventUrl" className="text-[#191919] font-semibold">
+                                        URL do Evento Online *
+                                    </Label>
+                                    <Input
+                                        id="eventUrl"
+                                        type="url"
+                                        placeholder="Ex: https://meet.google.com/abc-defg-hij"
+                                        value={formData.eventUrl}
+                                        onChange={(e) => handleInputChange("eventUrl", e.target.value)}
+                                        className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                        required={isRemote}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <Label htmlFor="location" className="text-[#191919] font-semibold">
+                                        Local do Evento *
+                                    </Label>
+                                    <Input
+                                        id="location"
+                                        type="text"
+                                        placeholder="Ex: Auditório Central - Bloco A"
+                                        value={formData.location}
+                                        onChange={(e) => handleInputChange("location", e.target.value)}
+                                        className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                        required={!isRemote}
+                                    />
+                                </div>
+                            )}
 
                             {/* Máximo de Participantes */}
                             <div className="space-y-2">
@@ -496,42 +556,6 @@ export default function CreateEventPage() {
                                     </button>
                                 </div>
                             )}
-                        </div>
-                    </section>
-
-                    {/* Opções Adicionais */}
-                    <section className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-                        <h2 className="text-2xl font-bold text-[#191919] mb-6 flex items-center">
-                            <Tag className="h-6 w-6 mr-3 text-[#ff914d]" />
-                            Opções Adicionais
-                        </h2>
-
-                        <div className="space-y-4">
-                            {/* Evento Remoto */}
-                            <div className="flex items-center space-x-3">
-                                <Checkbox
-                                    id="isRemote"
-                                    checked={isRemote}
-                                    onCheckedChange={(checked) => setIsRemote(checked === true)}
-                                    className="border-gray-300 data-[state=checked]:bg-[#ff914d] data-[state=checked]:border-[#ff914d]"
-                                />
-                                <Label htmlFor="isRemote" className="text-[#191919] font-semibold cursor-pointer">
-                                    Evento Remoto (Online)
-                                </Label>
-                            </div>
-
-                            {/* Gerar Certificado */}
-                            <div className="flex items-center space-x-3">
-                                <Checkbox
-                                    id="generateCertificate"
-                                    checked={generateCertificate}
-                                    onCheckedChange={(checked) => setGenerateCertificate(checked === true)}
-                                    className="border-gray-300 data-[state=checked]:bg-[#ff914d] data-[state=checked]:border-[#ff914d]"
-                                />
-                                <Label htmlFor="generateCertificate" className="text-[#191919] font-semibold cursor-pointer">
-                                    Gerar Certificado para Participantes
-                                </Label>
-                            </div>
                         </div>
                     </section>
 

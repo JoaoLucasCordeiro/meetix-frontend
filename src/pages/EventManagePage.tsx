@@ -100,6 +100,7 @@ export default function EventManagePage() {
     const [isDeletingEvent, setIsDeletingEvent] = useState(false);
     const [inviteEmail, setInviteEmail] = useState("");
     const [isSendingInvite, setIsSendingInvite] = useState(false);
+    const [activeTab, setActiveTab] = useState("details");
     
     // Order validation states
     const [selectedOrder, setSelectedOrder] = useState<TicketOrder | null>(null);
@@ -124,6 +125,9 @@ export default function EventManagePage() {
         description: "",
         location: "",
         maxAttendees: "",
+        price: "",
+        pixKey: "",
+        pixKeyType: "EMAIL" as 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'RANDOM'
     });
 
     useEffect(() => {
@@ -164,6 +168,9 @@ export default function EventManagePage() {
                 description: eventData.description,
                 location: eventData.location || "",
                 maxAttendees: eventData.maxAttendees?.toString() || "",
+                price: eventData.price?.toString() || "",
+                pixKey: eventData.pixKey || "",
+                pixKeyType: eventData.pixKeyType || "EMAIL"
             });
         } catch (error) {
             const apiError = error as ApiError;
@@ -517,6 +524,9 @@ export default function EventManagePage() {
                 description: editForm.description.trim(),
                 location: editForm.location.trim(),
                 maxAttendees: parseInt(editForm.maxAttendees),
+                price: editForm.price ? parseFloat(editForm.price) : undefined,
+                pixKey: editForm.pixKey.trim() || undefined,
+                pixKeyType: editForm.pixKey.trim() ? editForm.pixKeyType : undefined
             };
 
             await eventsAPI.updateEvent(id, updateData);
@@ -688,7 +698,14 @@ export default function EventManagePage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.4 }}
                 >
-                    <Tabs defaultValue="details" className="w-full">
+                    <Tabs value={activeTab} onValueChange={(value) => {
+                        setActiveTab(value);
+                        // Recarregar participantes e evento quando trocar para aba de certificados ou check-ins
+                        if (value === 'certificates' || value === 'checkins') {
+                            fetchEventData();
+                            fetchParticipants();
+                        }
+                    }} className="w-full">
                         <TabsList className="grid w-full grid-cols-9 h-14 bg-gray-100 rounded-xl p-1 mb-8">
                             <TabsTrigger 
                                 value="details" 
@@ -781,6 +798,9 @@ export default function EventManagePage() {
                                                         description: event.description,
                                                         location: event.location || "",
                                                         maxAttendees: event.maxAttendees?.toString() || "",
+                                                        price: event.price?.toString() || "",
+                                                        pixKey: event.pixKey || "",
+                                                        pixKeyType: event.pixKeyType || "EMAIL"
                                                     });
                                                 }}
                                             >
@@ -864,6 +884,82 @@ export default function EventManagePage() {
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* Seção de Pagamento PIX - apenas para eventos pagos */}
+                                    {event?.isPaid && (
+                                        <div className="mt-6 p-6 bg-blue-50 rounded-xl border border-blue-200">
+                                            <h3 className="text-lg font-bold text-[#191919] mb-4 flex items-center gap-2">
+                                                <DollarSign className="h-5 w-5 text-blue-600" />
+                                                Informações de Pagamento PIX
+                                            </h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-2">
+                                                    <Label className="text-[#191919] font-semibold">Preço do Ingresso (R$)</Label>
+                                                    {isEditing ? (
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            value={editForm.price}
+                                                            onChange={(e) => setEditForm(prev => ({ ...prev, price: e.target.value }))}
+                                                            className="h-12 rounded-xl"
+                                                            placeholder="Ex: 50.00"
+                                                        />
+                                                    ) : (
+                                                        <p className="text-[#191919]/70 p-3 bg-white rounded-xl">
+                                                            {event.price ? `R$ ${parseFloat(event.price.toString()).toFixed(2)}` : 'Não informado'}
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label className="text-[#191919] font-semibold">Tipo de Chave PIX</Label>
+                                                    {isEditing ? (
+                                                        <select
+                                                            value={editForm.pixKeyType}
+                                                            onChange={(e) => setEditForm(prev => ({ ...prev, pixKeyType: e.target.value as any }))}
+                                                            className="h-12 rounded-xl w-full border border-gray-300 px-3"
+                                                        >
+                                                            <option value="EMAIL">E-mail</option>
+                                                            <option value="CPF">CPF</option>
+                                                            <option value="CNPJ">CNPJ</option>
+                                                            <option value="PHONE">Telefone</option>
+                                                            <option value="RANDOM">Chave Aleatória</option>
+                                                        </select>
+                                                    ) : (
+                                                        <p className="text-[#191919]/70 p-3 bg-white rounded-xl">
+                                                            {event.pixKeyType === 'EMAIL' ? 'E-mail' :
+                                                             event.pixKeyType === 'PHONE' ? 'Telefone' :
+                                                             event.pixKeyType === 'RANDOM' ? 'Chave Aleatória' :
+                                                             event.pixKeyType || 'Não informado'}
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                <div className="space-y-2 md:col-span-2">
+                                                    <Label className="text-[#191919] font-semibold">Chave PIX</Label>
+                                                    {isEditing ? (
+                                                        <Input
+                                                            value={editForm.pixKey}
+                                                            onChange={(e) => setEditForm(prev => ({ ...prev, pixKey: e.target.value }))}
+                                                            className="h-12 rounded-xl"
+                                                            placeholder="Digite sua chave PIX"
+                                                        />
+                                                    ) : (
+                                                        <p className="text-[#191919]/70 p-3 bg-white rounded-xl font-mono">
+                                                            {event.pixKey || 'Não configurado'}
+                                                        </p>
+                                                    )}
+                                                    {!event.pixKey && !isEditing && (
+                                                        <p className="text-sm text-red-600 mt-2 flex items-center gap-2">
+                                                            <Info className="h-4 w-4" />
+                                                            Configure a chave PIX para permitir a compra de ingressos
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Danger Zone */}
@@ -1822,9 +1918,14 @@ export default function EventManagePage() {
                                             {participants.map((participant) => {
                                                 const certificate = certificates.get(participant.id);
                                                 const isGenerating = generatingCertificates.has(participant.id);
-                                                const isEligible = participant.attended && 
-                                                                  event?.generateCertificate && 
-                                                                  new Date(event?.endDateTime || '') < new Date();
+
+                                                // Verificar se o evento terminou (considerar timezone local)
+                                                const eventEndDate = event?.endDateTime ? new Date(event.endDateTime + 'Z') : new Date();
+                                                const eventEnded = eventEndDate < new Date();
+
+                                                const isEligible = participant.attended &&
+                                                                  event?.generateCertificate &&
+                                                                  eventEnded;
 
                                                 return (
                                                     <div
