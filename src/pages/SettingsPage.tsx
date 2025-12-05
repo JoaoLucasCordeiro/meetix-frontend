@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
     Settings as SettingsIcon,
@@ -24,22 +24,49 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Link } from "react-router-dom";
 import EventsLayout from "@/components/layouts/EventsLayouts";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "react-toastify";
+import { userAPI } from "@/lib/api";
 
 export default function SettingsPage() {
+    const { user } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
-    const [profileImage, setProfileImage] = useState<string | null>("https://ui-avatars.com/api/?name=João+Lucas&background=ff914d&color=fff&size=256");
+    const [profileImage, setProfileImage] = useState<string | null>(null);
     const [theme, setTheme] = useState("light");
 
     // User data state
     const [userData, setUserData] = useState({
-        name: "João Lucas Silva",
-        email: "joao.lucas@universidade.edu.br",
+        firstName: "",
+        lastName: "",
+        email: "",
+        instagram: "",
+        university: "",
+        course: "",
         currentPassword: "",
         newPassword: "",
         confirmPassword: ""
     });
+
+    // Load user data from context
+    useEffect(() => {
+        if (user) {
+            const fullName = `${user.firstName} ${user.lastName}`;
+            setUserData({
+                firstName: user.firstName || "",
+                lastName: user.lastName || "",
+                email: user.email || "",
+                instagram: user.instagram || "",
+                university: user.university || "",
+                course: user.course || "",
+                currentPassword: "",
+                newPassword: "",
+                confirmPassword: ""
+            });
+            setProfileImage(`https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=ff914d&color=fff&size=256`);
+        }
+    }, [user]);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -56,31 +83,77 @@ export default function SettingsPage() {
         setUserData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleSaveProfile = (e: React.FormEvent) => {
+    const handleSaveProfile = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        // Simular salvamento
-        setTimeout(() => {
-            console.log("Profile saved:", userData);
+
+        try {
+            await userAPI.updateProfile({
+                firstName: userData.firstName,
+                lastName: userData.lastName,
+                email: userData.email,
+                instagram: userData.instagram,
+                university: userData.university,
+                course: userData.course,
+            });
+            toast.success("Perfil atualizado com sucesso!");
+        } catch (error: any) {
+            toast.error(error.message || "Erro ao atualizar perfil");
+        } finally {
             setIsLoading(false);
-        }, 1500);
+        }
     };
 
-    const handleChangePassword = (e: React.FormEvent) => {
+    const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (userData.newPassword !== userData.confirmPassword) {
+            toast.error("As senhas não coincidem");
+            return;
+        }
+
+        if (userData.newPassword.length < 6) {
+            toast.error("A nova senha deve ter pelo menos 6 caracteres");
+            return;
+        }
+
+        if (!userData.currentPassword) {
+            toast.error("Informe sua senha atual");
+            return;
+        }
+
         setIsLoading(true);
-        // Simular mudança de senha
-        setTimeout(() => {
-            console.log("Password changed");
+
+        try {
+            await userAPI.changePassword({
+                currentPassword: userData.currentPassword,
+                newPassword: userData.newPassword
+            });
+            toast.success("Senha alterada com sucesso!");
             setUserData(prev => ({
                 ...prev,
                 currentPassword: "",
                 newPassword: "",
                 confirmPassword: ""
             }));
+        } catch (error: any) {
+            toast.error(error.message || "Erro ao alterar senha");
+        } finally {
             setIsLoading(false);
-        }, 1500);
+        }
     };
+
+    if (!user) {
+        return (
+            <EventsLayout>
+                <div className="container mx-auto px-6 py-12 max-w-4xl">
+                    <div className="flex items-center justify-center min-h-[400px]">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ff914d]"></div>
+                    </div>
+                </div>
+            </EventsLayout>
+        );
+    }
 
     return (
         <EventsLayout>
@@ -143,7 +216,7 @@ export default function SettingsPage() {
                             </div>
                             <div className="flex-1 text-center md:text-left">
                                 <h3 className="text-xl font-bold text-[#191919] mb-2">
-                                    {userData.name}
+                                    {userData.firstName} {userData.lastName}
                                 </h3>
                                 <p className="text-[#191919]/60 mb-4">{userData.email}</p>
                                 <p className="text-sm text-[#191919]/70">
@@ -167,17 +240,32 @@ export default function SettingsPage() {
                         </h2>
 
                         <form onSubmit={handleSaveProfile} className="space-y-6">
-                            <div className="space-y-2">
-                                <Label htmlFor="name" className="text-[#191919] font-semibold">
-                                    Nome Completo
-                                </Label>
-                                <Input
-                                    id="name"
-                                    type="text"
-                                    value={userData.name}
-                                    onChange={(e) => handleInputChange("name", e.target.value)}
-                                    className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
-                                />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="firstName" className="text-[#191919] font-semibold">
+                                        Primeiro Nome
+                                    </Label>
+                                    <Input
+                                        id="firstName"
+                                        type="text"
+                                        value={userData.firstName}
+                                        onChange={(e) => handleInputChange("firstName", e.target.value)}
+                                        className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="lastName" className="text-[#191919] font-semibold">
+                                        Sobrenome
+                                    </Label>
+                                    <Input
+                                        id="lastName"
+                                        type="text"
+                                        value={userData.lastName}
+                                        onChange={(e) => handleInputChange("lastName", e.target.value)}
+                                        className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                    />
+                                </div>
                             </div>
 
                             <div className="space-y-2">
@@ -194,6 +282,46 @@ export default function SettingsPage() {
                                 <p className="text-sm text-[#191919]/60">
                                     Ao alterar seu e-mail, você precisará verificá-lo novamente.
                                 </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="instagram" className="text-[#191919] font-semibold">
+                                    Instagram (opcional)
+                                </Label>
+                                <Input
+                                    id="instagram"
+                                    type="text"
+                                    value={userData.instagram}
+                                    onChange={(e) => handleInputChange("instagram", e.target.value)}
+                                    placeholder="@seu_instagram"
+                                    className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="university" className="text-[#191919] font-semibold">
+                                    Universidade
+                                </Label>
+                                <Input
+                                    id="university"
+                                    type="text"
+                                    value={userData.university}
+                                    onChange={(e) => handleInputChange("university", e.target.value)}
+                                    className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="course" className="text-[#191919] font-semibold">
+                                    Curso
+                                </Label>
+                                <Input
+                                    id="course"
+                                    type="text"
+                                    value={userData.course}
+                                    onChange={(e) => handleInputChange("course", e.target.value)}
+                                    className="h-12 rounded-xl border-gray-300 focus:ring-2 focus:ring-[#ff914d]"
+                                />
                             </div>
 
                             <Button
