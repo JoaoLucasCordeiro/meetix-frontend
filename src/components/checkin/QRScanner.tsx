@@ -27,13 +27,14 @@ export default function QRScanner({ onScanSuccess, isProcessing }: QRScannerProp
             
             // Inicializar scanner
             if (!scannerRef.current) {
-                scannerRef.current = new Html5Qrcode(qrCodeRegionId);
+                scannerRef.current = new Html5Qrcode(qrCodeRegionId, false);
             }
 
             const config = {
                 fps: 10,
                 qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0
+                aspectRatio: 1.0,
+                verbose: false
             };
 
             await scannerRef.current.start(
