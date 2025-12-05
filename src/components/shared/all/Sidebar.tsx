@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { notificationAPI } from "@/lib/api";
+import { notificationAPI, participantsAPI, eventsAPI } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SidebarProps {
     isOpen: boolean;
@@ -13,7 +14,9 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     const location = useLocation();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [unreadCount, setUnreadCount] = useState(0);
+    const [upcomingEventsCount, setUpcomingEventsCount] = useState(0);
 
     useEffect(() => {
         // Fetch initial unread count
@@ -25,12 +28,55 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         return () => clearInterval(interval);
     }, []);
 
+    useEffect(() => {
+        // Fetch upcoming events count
+        if (user) {
+            fetchUpcomingEventsCount();
+        }
+    }, [user]);
+
     const fetchUnreadCount = async () => {
         try {
             const result = await notificationAPI.getUnreadCount();
             setUnreadCount(result.count);
+        } catch (error: any) {
+            // Silently fail for 403 errors (feature may not be available for all users)
+            if (error.status !== 403) {
+                console.error('Erro ao buscar notificações:', error);
+            }
+            setUnreadCount(0);
+        }
+    };
+
+    const fetchUpcomingEventsCount = async () => {
+        if (!user) return;
+
+        try {
+            const participations = await participantsAPI.getUserParticipations(user.id);
+
+            const eventsPromises = participations.map(p =>
+                eventsAPI.getEventById(p.eventId)
+            );
+            const events = await Promise.all(eventsPromises);
+
+            // Get current date/time in Brazil timezone (UTC-3)
+            const now = new Date();
+            const brasiliaOffset = -3 * 60; // Brazil is UTC-3 (in minutes)
+            const localOffset = now.getTimezoneOffset(); // Current timezone offset
+            const offsetDiff = localOffset - brasiliaOffset;
+            const nowBrasilia = new Date(now.getTime() + offsetDiff * 60 * 1000);
+
+            const thirtyDaysFromNow = new Date(nowBrasilia);
+            thirtyDaysFromNow.setDate(nowBrasilia.getDate() + 30);
+
+            const upcomingEvents = events.filter(event => {
+                const eventStart = new Date(event.startDateTime);
+                return eventStart >= nowBrasilia && eventStart <= thirtyDaysFromNow;
+            });
+
+            setUpcomingEventsCount(upcomingEvents.length);
         } catch (error) {
-            console.error('Erro ao buscar notificações:', error);
+            console.error('Erro ao buscar eventos futuros:', error);
         }
     };
 
@@ -226,7 +272,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                             Seus Eventos
                         </p>
                     </div>
-                    <p className="text-2xl font-bold text-[#ff914d] mb-1">12</p>
+                    <p className="text-2xl font-bold text-[#ff914d] mb-1">{upcomingEventsCount}</p>
                     <p className="text-xs text-[#191919]/60">
                         Eventos nos próximos 30 dias
                     </p>
