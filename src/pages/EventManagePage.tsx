@@ -455,17 +455,40 @@ export default function EventManagePage() {
             
             // Generate badge if not already generated
             if (badge && !badge.generated) {
-                console.log('Generating badge...');
+                console.log('Generating badge...', {
+                    badgeId,
+                    displayName: badge.displayName,
+                    role: badge.role,
+                    template: badge.template,
+                });
                 try {
                     await badgesAPI.generateBadge(badgeId);
-                    console.log('Badge generated successfully');
+                    console.log('Badge generated successfully for:', badge.displayName);
                     // Refresh badges list to update generated status
                     await fetchBadges();
                     await fetchBadgeStats();
                 } catch (genError) {
                     console.error('Error generating badge:', genError);
                     const apiError = genError as ApiError;
-                    toast.error(`Erro ao gerar crachá: ${apiError.message}`);
+
+                    let genErrorMsg = `Erro ao gerar crachá de ${badge.displayName}`;
+                    if (apiError.status === 500) {
+                        genErrorMsg += ' - Erro no servidor ao processar template';
+                    } else if (apiError.message) {
+                        genErrorMsg += ` - ${apiError.message}`;
+                    }
+
+                    toast.error(genErrorMsg, { autoClose: 7000 });
+
+                    console.error('Relatório de erro na geração:', {
+                        badgeId,
+                        badgeName: badge.displayName,
+                        template: badge.template,
+                        role: badge.role,
+                        errorStatus: apiError.status,
+                        errorMessage: apiError.message,
+                        timestamp: new Date().toISOString(),
+                    });
                     return;
                 }
             }
@@ -489,15 +512,49 @@ export default function EventManagePage() {
         } catch (error) {
             console.error('Error downloading badge:', error);
             const apiError = error as ApiError;
-            
-            // Show more helpful error message for 500 errors
-            if (apiError.status === 500) {
-                toast.error('Erro ao gerar PDF do crachá. Verifique se o backend está funcionando corretamente.', {
-                    autoClose: 5000,
-                });
-            } else {
-                toast.error(apiError.message || 'Erro ao baixar crachá');
+
+            // Build detailed error message
+            const badge = badges.find(b => b.badgeId === badgeId);
+            let errorDetails = `Erro ao ${badge?.generated ? 'baixar' : 'gerar'} crachá`;
+
+            if (badge) {
+                errorDetails += ` de ${badge.displayName}`;
             }
+
+            // Add specific error information based on status code
+            if (apiError.status === 500) {
+                errorDetails += ' - Erro no servidor ao processar o PDF';
+                toast.error(errorDetails, {
+                    autoClose: 7000,
+                });
+                console.error('Detalhes do erro 500:', {
+                    badgeId,
+                    badgeName: badge?.displayName,
+                    template: badge?.template,
+                    generated: badge?.generated,
+                    errorMessage: apiError.message,
+                });
+            } else if (apiError.status === 404) {
+                errorDetails += ' - Crachá não encontrado no sistema';
+                toast.error(errorDetails);
+                console.error('Badge not found:', badgeId);
+            } else if (apiError.status === 403) {
+                errorDetails += ' - Sem permissão para acessar este crachá';
+                toast.error(errorDetails);
+            } else {
+                errorDetails += apiError.message ? ` - ${apiError.message}` : '';
+                toast.error(errorDetails);
+            }
+
+            // Log comprehensive error information for debugging
+            console.error('Relatório completo do erro:', {
+                badgeId,
+                badgeData: badge,
+                errorStatus: apiError.status,
+                errorMessage: apiError.message,
+                wasGenerated: badge?.generated,
+                timestamp: new Date().toISOString(),
+            });
         } finally {
             setIsDownloadingBadge(null);
         }
@@ -706,7 +763,7 @@ export default function EventManagePage() {
                             fetchParticipants();
                         }
                     }} className="w-full">
-                        <TabsList className="grid w-full grid-cols-9 h-14 bg-gray-100 rounded-xl p-1 mb-8">
+                        <TabsList className={`grid w-full ${event?.isPaid ? 'grid-cols-9' : 'grid-cols-7'} h-14 bg-gray-100 rounded-xl p-1 mb-8`}>
                             <TabsTrigger 
                                 value="details" 
                                 className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#ff914d] data-[state=active]:shadow-md transition-all font-semibold"
@@ -742,13 +799,15 @@ export default function EventManagePage() {
                                 <Award className="h-5 w-5 mr-2" />
                                 Certificados
                             </TabsTrigger>
-                            <TabsTrigger 
-                                value="coupons" 
-                                className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#ff914d] data-[state=active]:shadow-md transition-all font-semibold"
-                            >
-                                <Tag className="h-5 w-5 mr-2" />
-                                Cupons
-                            </TabsTrigger>
+                            {event?.isPaid && (
+                                <TabsTrigger
+                                    value="coupons"
+                                    className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#ff914d] data-[state=active]:shadow-md transition-all font-semibold"
+                                >
+                                    <Tag className="h-5 w-5 mr-2" />
+                                    Cupons
+                                </TabsTrigger>
+                            )}
                             <TabsTrigger 
                                 value="feedbacks" 
                                 className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#ff914d] data-[state=active]:shadow-md transition-all font-semibold"
@@ -756,13 +815,15 @@ export default function EventManagePage() {
                                 <MessageSquare className="h-5 w-5 mr-2" />
                                 Feedbacks
                             </TabsTrigger>
-                            <TabsTrigger 
-                                value="orders" 
-                                className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#ff914d] data-[state=active]:shadow-md transition-all font-semibold"
-                            >
-                                <Receipt className="h-5 w-5 mr-2" />
-                                Pedidos
-                            </TabsTrigger>
+                            {event?.isPaid && (
+                                <TabsTrigger
+                                    value="orders"
+                                    className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#ff914d] data-[state=active]:shadow-md transition-all font-semibold"
+                                >
+                                    <Receipt className="h-5 w-5 mr-2" />
+                                    Pedidos
+                                </TabsTrigger>
+                            )}
                             <TabsTrigger 
                                 value="admins" 
                                 className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#ff914d] data-[state=active]:shadow-md transition-all font-semibold"
